@@ -88,8 +88,13 @@ var (
 	fourteen      = decimal.NewFromInt(14)
 	deductionRate = decimal.RequireFromString("0.10")
 	keepRate      = decimal.RequireFromString("0.30")
-	minLoopPool   = decimal.RequireFromString("1.00")
-	maxLoopCount  = 1000
+	// minLoopShare is the v3.9 PER-CAPITA newcomer final-loop floor: a loop ends
+	// when loopPool ≤ minLoopShare × eligibleCount ($0.01/member). It replaced the
+	// v3.7/v1 flat $1.00 absolute floor, which never rescaled past ~100-member
+	// fields and sat below the grid's 6dp viability floor (14·n·1e-6) above ~71k
+	// eligible — see REWARD_SYSTEM v3.9. The frozen v37 package keeps the old $1.00.
+	minLoopShare = decimal.RequireFromString("0.01")
+	maxLoopCount = 1000
 )
 
 // ============================================================================
@@ -282,7 +287,10 @@ func computeNewcomerLoops(
 			break
 		}
 		nextEligible := filterByMinLS(participants, loopN+1)
-		isFinal := len(eligible) <= 15 || loopPool.LessThanOrEqual(minLoopPool) || len(nextEligible) == 0
+		// v3.9 per-capita final-loop floor: end when the pool can no longer give each
+		// eligible member ≥ $0.01. (v37/v1 used a flat $1.00 — see minLoopShare.)
+		perCapitaFloor := minLoopShare.Mul(decimal.NewFromInt(int64(len(eligible))))
+		isFinal := len(eligible) <= 15 || loopPool.LessThanOrEqual(perCapitaFloor) || len(nextEligible) == 0
 
 		record := LoopResult{LoopNumber: loopN, Participants: len(eligible), IsFinal: isFinal}
 
@@ -447,7 +455,14 @@ func gridRank(pos int) int {
 	return bits.Len(uint(pos))
 }
 
+// Interior fast-path mirrors usecase/reward.CountDescendants: when the deepest
+// level fits within totalNodes the whole subtree is full, so the count is the
+// closed-form sum_{d=1}^{maxDepth} 2^d = 2^(maxDepth+1) - 2. Byte-identical to the
+// loop (gated by make verify-reward-calculator) — no algorithm-version change.
 func countDescendants(pos, totalNodes, maxDepth int) int {
+	if pos > 0 && pos*(1<<maxDepth)+(1<<maxDepth)-1 <= totalNodes {
+		return (1 << (maxDepth + 1)) - 2
+	}
 	count := 0
 	for d := 1; d <= maxDepth; d++ {
 		startPos := pos * (1 << d)

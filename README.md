@@ -8,18 +8,36 @@ WASM from this source, confirm the hash matches the on-chain announcement, run i
 on their own exported distribution snapshot, and independently reproduce their
 reward — no trust in GenieGenerate's servers required.
 
-## On-chain anchor (v3.7)
+## On-chain anchor (v3.9)
 
 | | |
 |---|---|
-| `algorithm_id` | `0xc32dbb34adccc93bf871e725b6afbfc7a8343377600dd79b4b4a8771731824bb` |
+| `algorithm_id` | `0x26512565c91b76c1b1401dc41d75412f490a3fc7d76aef18d8e4ed47d8ef41e9` |
 | Contract (`RewardVerifier`, BSC testnet) | `0x7fFeeEa9ED233B7c50aD291A4d8044249ABF2174` |
-| Announce tx | `0xda72a5d2dd4212aad6781db0625717bad5904a1a60a627b53625f5e80cf1f0ee` |
-| Effective | `2026-06-16T19:01:15Z` (after the contract's 7-day MIN_TIMELOCK) |
+| Announce tx | `0x45172314ccf6efc0644d21a73dd2d2088f3c935ab2ca387fec1ea52e5d5a76dc` |
+| Effective | `2026-06-23T03:15:46Z` (after the contract's 7-day MIN_TIMELOCK) |
 
 `algorithm_id = "0x" + keccak256(calculator.wasm)`. The 7-day timelock between
 announcement and effectiveness exists precisely so anyone can verify this source
 and its compiled artifact *before* it computes any rewards.
+
+**v3.9** changes the newcomer-leaderboard final-loop trigger from a flat
+`pool ≤ $1.00` floor to per-capita `pool ≤ $0.01 × eligible participants`; the
+grid math is unchanged from v3.7. The flat floor never rescaled with field size
+(at very large fields it fell below the grid's 6-decimal viability floor), so the
+per-capita form makes "a sub-1¢-per-member credit isn't worth another loop" hold
+at any size.
+
+### Version history
+
+Each announced version's WASM is published as a release on this repo; check out
+the matching tag and rebuild to reproduce that version's `algorithm_id`.
+
+| version | `algorithm_id` | effective | change |
+|---|---|---|---|
+| genesis | `0x4b0575ef…ceb94633b` | 2026-06-08 | initial testnet anchor |
+| `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
+| `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
 
 ## Reproducible build
 
