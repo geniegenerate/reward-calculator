@@ -36,8 +36,12 @@
     el.hidden = false;
   }
 
-  function hashRow(label, value, ok) {
-    const cls = ok === undefined ? '' : ok ? ' ok' : ' bad';
+  // variant 'chain' marks values read from the BNB Smart Chain (teal rail);
+  // unmarked rows were computed on this device (orange rail).
+  function hashRow(label, value, ok, variant) {
+    const cls =
+      (variant ? ' ' + variant : '') +
+      (ok === undefined ? '' : ok ? ' ok' : ' bad');
     const mark = ok === undefined ? '' : ok ? ' ✓' : ' ✗';
     return (
       '<div class="hash-row' + cls + '"><span class="hash-label">' + label + mark +
@@ -181,9 +185,9 @@
     rows.push(hashRow('result Merkle root (recomputed)', resultRoot,
       chain ? resultRoot === chain.resultMerkleRoot : undefined));
     if (chain) {
-      rows.push(hashRow('on-chain input root', chain.inputMerkleRoot));
-      rows.push(hashRow('on-chain result root', chain.resultMerkleRoot));
-      rows.push(hashRow('on-chain algorithm_id', chain.algorithmId, chain.algorithmId === state.wasmHash));
+      rows.push(hashRow('on-chain input root', chain.inputMerkleRoot, undefined, 'chain'));
+      rows.push(hashRow('on-chain result root', chain.resultMerkleRoot, undefined, 'chain'));
+      rows.push(hashRow('on-chain algorithm_id', chain.algorithmId, chain.algorithmId === state.wasmHash, 'chain'));
     }
     if (state.result) {
       rows.push(hashRow('published result file root', state.result.result_merkle_root,
@@ -214,6 +218,7 @@
         'getCommitment on BscScan yourself.');
     }
     $('explorer-link').hidden = false;
+    $('rail-legend').hidden = false;
 
     renderMembers(snap, calcOut);
   }
