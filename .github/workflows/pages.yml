@@ -1,0 +1,49 @@
+# Deploys the web calculator (web/) to GitHub Pages. The served calculator.wasm
+# is the GitHub release asset — byte-identical to the announced algorithm_id —
+# downloaded at deploy time, never committed.
+name: deploy-pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch released calculator.wasm
+        run: |
+          curl -fsSL -o web/calculator/calculator.wasm \
+            https://github.com/geniegenerate/reward-calculator/releases/latest/download/calculator.wasm
+      - name: Verify served binary matches the announced algorithm_id
+        run: |
+          node -e "
+          const {keccak256} = require('./web/calculator/sha3.js');
+          const fs = require('fs');
+          const h = '0x' + keccak256(new Uint8Array(fs.readFileSync('web/calculator/calculator.wasm')));
+          const readme = fs.readFileSync('README.md', 'utf8');
+          if (!readme.includes(h)) {
+            console.error('served wasm hash ' + h + ' not found in README On-chain anchor — stale release or stale README');
+            process.exit(1);
+          }
+          console.log('served wasm hash ' + h + ' matches README anchor');
+          "
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4
