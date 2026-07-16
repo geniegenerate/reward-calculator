@@ -3,136 +3,390 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#131009">
 <title>GenieGenerate — Reward Calculator</title>
 <meta name="description" content="Verify a GenieGenerate reward distribution on your own device: recompute the Merkle roots with the open-source algorithm and compare them with the on-chain commitment.">
 <style>
+  /* ————————————————————————————————————————————————————————————————
+     GenieGenerate Reward Calculator — member-mode trust surface.
+     Everything on this page is local: no fonts, no CDNs, no trackers.
+     The design itself is part of the audit surface — view source.
+     ———————————————————————————————————————————————————————————————— */
   :root {
-    --bg: #21262F; --card: #2A313C; --border: #343B46;
-    --text: #EAEEEF; --text-2: #A0A8B6; --text-3: #949CAA;
-    --orange: #F6921A; --teal: #0FA4A4; --green: #10B981; --red: #E57373;
+    --orange: #F6921A;
+    --orange-deep: #C96F06;
+    --bg-0: #131009;
+    --bg-1: #1A1510;
+    --panel: #1E1912;
+    --panel-2: #241E15;
+    --edge: #352B1B;
+    --edge-soft: #2A2216;
+    --ink: #F4EEE3;
+    --ink-2: #C9BDA8;
+    --ink-3: #A2937B;
+    --green: #10B981;
+    --red: #E57373;
     --amber: #D8B35D;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: "Avenir Next", Avenir, "Segoe UI", -apple-system, Roboto, "Helvetica Neue", sans-serif;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.55 Inter, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    margin: 0;
+    color: var(--ink);
+    background: var(--bg-0);
+    font: 16px/1.6 var(--sans);
+    overflow-x: hidden;
   }
-  main { max-width: 780px; margin: 0 auto; padding: 32px 20px 64px; }
-  header { text-align: center; margin-bottom: 28px; }
-  header .mark {
-    display: inline-flex; width: 56px; height: 56px; border-radius: 16px;
-    background: rgba(246, 146, 26, .12); color: var(--orange);
-    align-items: center; justify-content: center; font-size: 28px; margin-bottom: 12px;
+
+  /* —— atmosphere: ledger grid + orange aurora + grain ———————————— */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60vw 40vh at 85% -8%, rgba(246, 146, 26, .13), transparent 62%),
+      radial-gradient(48vw 34vh at -12% 22%, rgba(246, 146, 26, .07), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0) 42vh);
   }
-  h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
-  header p { color: var(--text-2); margin: 0 auto; max-width: 560px; }
-  section {
-    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    padding: 20px; margin-bottom: 16px;
+  body::after {
+    content: "";
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(246, 146, 26, .045) 0 1px, transparent 1px 56px),
+      repeating-linear-gradient(90deg, rgba(246, 146, 26, .045) 0 1px, transparent 1px 56px),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.55) 38vh, rgba(0,0,0,.35));
   }
-  h2 { font-size: 15px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
-  .step-no {
-    flex: none; width: 22px; height: 22px; border-radius: 50%; font-size: 12px;
-    background: rgba(246, 146, 26, .15); color: var(--orange);
-    display: inline-flex; align-items: center; justify-content: center;
+
+  main { max-width: 860px; margin: 0 auto; padding: 52px 20px 72px; }
+
+  /* —— header: the notary seal ————————————————————————————————————— */
+  header { text-align: center; margin-bottom: 46px; }
+  .seal { width: 108px; height: 108px; margin: 0 auto 20px; position: relative; }
+  .seal svg { display: block; width: 100%; height: 100%; }
+  .seal .ring { transform-origin: 50% 50%; animation: ring-turn 80s linear infinite; }
+  @keyframes ring-turn { to { transform: rotate(360deg); } }
+  .kicker {
+    font: 600 11.5px/1 var(--mono);
+    letter-spacing: .34em; text-transform: uppercase;
+    color: var(--orange); margin: 0 0 14px;
   }
-  .sub { color: var(--text-3); font-size: 13.5px; margin: 0 0 14px 32px; }
+  h1 {
+    font: 700 clamp(34px, 6.4vw, 50px)/1.06 var(--mono);
+    letter-spacing: -.03em; margin: 0 0 16px;
+  }
+  h1 .tick { color: var(--orange); }
+  .lede { color: var(--ink-2); max-width: 600px; margin: 0 auto 22px; font-size: 16.5px; }
+  .lede strong { color: var(--ink); }
+  .assurances { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .assurances span {
+    font: 600 10.5px/1 var(--mono); letter-spacing: .14em;
+    color: var(--ink-3); border: 1px solid var(--edge-soft);
+    padding: 9px 13px; border-radius: 999px;
+    background: rgba(30, 25, 18, .5);
+  }
+  .assurances b { color: var(--orange); font-weight: 600; margin-right: 7px; }
+
+  /* —— the chain of steps ——————————————————————————————————————————— */
+  .chain { list-style: none; margin: 0; padding: 0; position: relative; }
+  .chain > li { position: relative; padding: 0 0 26px 40px; }
+  /* chain rail */
+  .chain > li::before {
+    content: ""; position: absolute; left: 13px; top: 34px; bottom: -6px; width: 2px;
+    background: linear-gradient(180deg, var(--edge) 0 60%, transparent);
+  }
+  .chain > li:last-child::before { display: none; }
+  /* chain node */
+  .chain > li::after {
+    content: ""; position: absolute; left: 6px; top: 12px;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--orange);
+    background: var(--bg-0);
+    box-shadow: 0 0 0 4px rgba(246, 146, 26, .12), 0 0 18px rgba(246, 146, 26, .25);
+  }
+  .step-tag {
+    font: 600 11px/1 var(--mono); letter-spacing: .26em;
+    color: var(--orange); text-transform: uppercase;
+    display: block; margin: 14px 0 10px;
+  }
+  .step-tag .addr { color: var(--ink-3); }
+
+  .panel {
+    background:
+      linear-gradient(180deg, rgba(246, 146, 26, .05), transparent 90px),
+      linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--edge-soft);
+    border-top-color: var(--edge);
+    border-radius: 18px;
+    padding: 24px 24px 22px;
+    box-shadow: 0 24px 48px -32px rgba(0, 0, 0, .8);
+  }
+  .panel h2 { font: 700 18px/1.3 var(--sans); margin: 0 0 5px; letter-spacing: .01em; }
+  .sub { color: var(--ink-3); font-size: 14px; margin: 0 0 16px; }
+  .sub a, .note a, footer a { color: var(--orange); text-decoration: none; border-bottom: 1px solid rgba(246, 146, 26, .35); }
+  .sub a:hover, .note a:hover, footer a:hover { border-bottom-color: var(--orange); }
+
+  /* —— dropzone: scanner brackets, like the app's QR frame ————————— */
   #dropzone {
-    border: 1.5px dashed var(--border); border-radius: 12px; padding: 26px 16px;
-    text-align: center; color: var(--text-2); cursor: pointer; transition: border-color .15s, background .15s;
+    position: relative; cursor: pointer; text-align: center;
+    padding: 34px 18px 30px; border-radius: 12px;
+    color: var(--ink-2);
+    background: rgba(19, 16, 9, .45);
+    transition: background .18s ease, transform .18s ease;
+    outline: none;
   }
-  #dropzone:hover, #dropzone.over { border-color: var(--orange); background: rgba(246, 146, 26, .05); }
-  #dropzone strong { color: var(--text); }
+  #dropzone::before, #dropzone::after,
+  #dropzone .corners::before, #dropzone .corners::after {
+    content: ""; position: absolute; width: 26px; height: 26px;
+    border: 2.5px solid var(--orange); transition: all .18s ease;
+  }
+  #dropzone::before        { top: 0;    left: 0;   border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
+  #dropzone::after         { top: 0;    right: 0;  border-left: 0;  border-bottom: 0; border-top-right-radius: 10px; }
+  #dropzone .corners::before { bottom: 0; left: 0;  border-right: 0; border-top: 0;   border-bottom-left-radius: 10px; }
+  #dropzone .corners::after  { bottom: 0; right: 0; border-left: 0;  border-top: 0;   border-bottom-right-radius: 10px; }
+  #dropzone:hover, #dropzone.over, #dropzone:focus-visible {
+    background: rgba(246, 146, 26, .07);
+  }
+  #dropzone.over { transform: scale(1.008); }
+  #dropzone:focus-visible { box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--orange); }
+  #dropzone .glyph {
+    width: 40px; height: 40px; margin: 0 auto 12px; display: block;
+    color: var(--orange);
+  }
+  #dropzone strong { color: var(--ink); font-size: 17px; }
+  #dropzone .hint {
+    display: block; margin-top: 7px;
+    font: 12.5px/1.5 var(--mono); color: var(--ink-3);
+  }
   #file-picker { display: none; }
+
+  /* —— status chips ————————————————————————————————————————————————— */
   .status {
-    margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 14px;
-    border: 1px solid transparent;
+    margin-top: 14px; padding: 12px 15px; border-radius: 11px;
+    font-size: 14.5px; border: 1px solid transparent;
+    display: flex; gap: 10px; align-items: baseline;
   }
-  .status.ok   { background: rgba(16, 185, 129, .1);  border-color: rgba(16, 185, 129, .35); color: #7fd8b8; }
-  .status.bad  { background: rgba(229, 115, 115, .1); border-color: rgba(229, 115, 115, .35); color: var(--red); }
-  .status.warn { background: rgba(216, 179, 93, .1);  border-color: rgba(216, 179, 93, .35); color: var(--amber); }
-  .status.busy { background: rgba(15, 164, 164, .1);  border-color: rgba(15, 164, 164, .35); color: var(--teal); }
-  .hash-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
-  .hash-row:last-child { border-bottom: 0; }
-  .hash-label { display: block; font-size: 12.5px; color: var(--text-3); margin-bottom: 2px; }
-  .hash-row.ok .hash-label { color: var(--green); }
+  .status::before { font: 700 13px/1.4 var(--mono); flex: none; }
+  .status.ok   { background: rgba(16, 185, 129, .09);  border-color: rgba(16, 185, 129, .32);  color: #86dcba; }
+  .status.ok::before   { content: "✓"; color: var(--green); }
+  .status.bad  { background: rgba(229, 115, 115, .09); border-color: rgba(229, 115, 115, .32); color: var(--red); }
+  .status.bad::before  { content: "✕"; }
+  .status.warn { background: rgba(216, 179, 93, .09);  border-color: rgba(216, 179, 93, .32);  color: var(--amber); }
+  .status.warn::before { content: "!"; }
+  .status.busy {
+    background: rgba(246, 146, 26, .07); border-color: rgba(246, 146, 26, .3);
+    color: var(--orange); position: relative; overflow: hidden;
+  }
+  .status.busy::before { content: "◌"; animation: spin 1s linear infinite; display: inline-block; transform-origin: 50% 55%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status.busy::after {
+    content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 38%;
+    background: linear-gradient(90deg, transparent, var(--orange), transparent);
+    animation: scan 1.4s ease-in-out infinite;
+  }
+  @keyframes scan { 0% { left: -40%; } 100% { left: 100%; } }
+
+  /* —— the verdict: a notary stamp ————————————————————————————————— */
+  #verdict { font-weight: 600; }
+  #verdict.ok {
+    display: block; text-align: center;
+    margin: 18px auto 6px; padding: 22px 20px 20px;
+    font: 700 15.5px/1.55 var(--mono); letter-spacing: .02em;
+    color: #8ee2c0;
+    border: 2px solid rgba(16, 185, 129, .55); border-radius: 14px;
+    box-shadow: inset 0 0 0 5px var(--panel), inset 0 0 0 6.5px rgba(16, 185, 129, .35),
+                0 0 44px -8px rgba(16, 185, 129, .25);
+    transform: rotate(-1.2deg);
+    animation: stamp .38s cubic-bezier(.2, 1.6, .4, 1) both;
+  }
+  #verdict.ok::before { display: block; font-size: 26px; margin: 0 auto 6px; }
+  @keyframes stamp {
+    0% { transform: rotate(-6deg) scale(1.6); opacity: 0; }
+    100% { transform: rotate(-1.2deg) scale(1); opacity: 1; }
+  }
+
+  /* —— evidence ledger (hash rows) —————————————————————————————————— */
+  #verify-detail { margin-top: 16px; }
+  .hash-row {
+    padding: 10px 0 10px 14px; border-bottom: 1px solid var(--edge-soft);
+    border-left: 2px solid var(--edge);
+  }
+  .hash-row:first-child { border-top: 1px solid var(--edge-soft); }
+  .hash-row.ok  { border-left-color: var(--green); }
+  .hash-row.bad { border-left-color: var(--red); }
+  .hash-label {
+    display: block; margin-bottom: 3px;
+    font: 600 10.5px/1.6 var(--mono); letter-spacing: .18em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .hash-row.ok .hash-label  { color: var(--green); }
   .hash-row.bad .hash-label { color: var(--red); }
-  code.hash {
-    font: 13px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    word-break: break-all; color: var(--text-2);
+  code.hash { font: 13px/1.5 var(--mono); word-break: break-all; color: var(--ink-2); }
+  .note { color: var(--ink-3); font-size: 13.5px; margin: 12px 0 0; }
+
+  #explorer-link {
+    display: inline-block; margin-top: 18px;
+    font: 600 13px/1 var(--mono); letter-spacing: .04em;
+    color: var(--orange); text-decoration: none;
+    border: 1px solid rgba(246, 146, 26, .4); border-radius: 10px;
+    padding: 13px 16px; min-height: 44px;
+    transition: background .15s ease, border-color .15s ease;
   }
-  .note { color: var(--text-3); font-size: 13px; margin: 10px 0 0; }
-  a { color: var(--teal); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  #explorer-link { display: inline-block; margin-top: 12px; font-size: 14px; }
-  #members-section input {
-    width: 100%; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px;
-    border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit;
+  #explorer-link:hover { background: rgba(246, 146, 26, .09); border-color: var(--orange); }
+  #explorer-link:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--orange); }
+
+  /* —— recomputed rewards table ————————————————————————————————————— */
+  #members-section { margin: 0 0 26px 40px; }
+  #members-filter {
+    width: 100%; padding: 13px 15px; min-height: 44px;
+    border-radius: 11px; margin-bottom: 14px;
+    border: 1px solid var(--edge); background: rgba(19, 16, 9, .55);
+    color: var(--ink); font: 14px var(--mono);
+    transition: border-color .15s ease;
   }
+  #members-filter::placeholder { color: var(--ink-3); }
+  #members-filter:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(246, 146, 26, .18); }
+  .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-3); font-weight: 500; font-size: 12.5px; }
-  td.num, th.num { text-align: right; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-  #members-count { color: var(--text-3); font-size: 12.5px; margin-top: 8px; }
-  footer { color: var(--text-3); font-size: 13px; text-align: center; margin-top: 32px; }
-  footer code { font-size: 12px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--edge-soft); white-space: nowrap; }
+  th {
+    color: var(--ink-3); font: 600 10.5px/1.6 var(--mono);
+    letter-spacing: .18em; text-transform: uppercase;
+  }
+  tbody tr { transition: background .12s ease; }
+  tbody tr:hover { background: rgba(246, 146, 26, .05); }
+  td:first-child { font: 600 13px var(--mono); color: var(--orange); }
+  td.num, th.num { text-align: right; font-family: var(--mono); }
+  td.num:last-child { color: var(--ink); font-weight: 600; }
+  #members-count { color: var(--ink-3); font: 12px var(--mono); margin-top: 10px; }
+
+  /* —— footer: the CLI escape hatch ————————————————————————————————— */
+  footer { margin-top: 44px; color: var(--ink-3); font-size: 13.5px; text-align: center; }
+  footer .term {
+    display: block; max-width: 560px; margin: 0 auto 14px;
+    text-align: left; font: 12.5px/1.7 var(--mono);
+    background: rgba(19, 16, 9, .7); border: 1px solid var(--edge-soft);
+    border-radius: 11px; padding: 13px 16px; color: var(--ink-2);
+    overflow-x: auto; white-space: nowrap;
+  }
+  footer .term .ps1 { color: var(--orange); user-select: none; }
+  footer .fine { max-width: 560px; margin: 0 auto; }
+
+  /* —— load choreography ————————————————————————————————————————————— */
+  header, .chain > li, footer {
+    animation: rise .55s cubic-bezier(.2, .7, .2, 1) both;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 560px) {
+    main { padding-top: 36px; }
+    .chain > li { padding-left: 30px; }
+    .chain > li::after { left: 2px; }
+    .chain > li::before { left: 9px; }
+    #members-section { margin-left: 30px; }
+    .panel { padding: 18px 16px 16px; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <div class="mark">🛡</div>
-    <h1>Reward Calculator</h1>
-    <p>Verify a GenieGenerate reward distribution <strong>without trusting GenieGenerate</strong>.
+  <header style="--i:0">
+    <div class="seal" aria-hidden="true">
+      <svg viewBox="0 0 108 108" fill="none">
+        <!-- tick ring: 32 keccak-style notches, slowly rotating -->
+        <g class="ring" stroke="#F6921A" stroke-width="2" opacity=".55">
+          <circle cx="54" cy="54" r="50" stroke-dasharray="2 7.82" stroke-opacity=".9"/>
+          <circle cx="54" cy="54" r="44" stroke-width="1" stroke-dasharray="1 4.75" stroke-opacity=".45"/>
+        </g>
+        <!-- shield -->
+        <path d="M54 26l20 8v14c0 13.6-8.5 24.4-20 28-11.5-3.6-20-14.4-20-28V34l20-8z"
+              stroke="#F6921A" stroke-width="2.5" fill="rgba(246,146,26,.09)"/>
+        <path d="M45 54.5l6.5 6.5L64 48" stroke="#F6921A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p class="kicker">GenieGenerate · Proof of Reward</p>
+    <h1>Reward Calculator<span class="tick">_</span></h1>
+    <p class="lede">Verify a reward distribution <strong>without trusting GenieGenerate</strong>.
        Everything runs in this page on your device; the only thing it talks to is the BNB Smart Chain.</p>
+    <div class="assurances" role="list">
+      <span role="listitem"><b>▸</b>RUNS 100% ON YOUR DEVICE</span>
+      <span role="listitem"><b>▸</b>READS ONLY THE BLOCKCHAIN</span>
+      <span role="listitem"><b>▸</b>SOURCE IS THIS PAGE</span>
+    </div>
   </header>
 
-  <section>
-    <h2><span class="step-no">1</span> Load your input snapshot</h2>
-    <p class="sub">Export it from the app: Verify Rewards → Download Verification Data → Input Snapshot.
-       You can also drop the Result File and a calculator.wasm from a
-       <a href="https://github.com/geniegenerate/reward-calculator/releases" rel="noopener">GitHub release</a>.</p>
-    <div id="dropzone" role="button" tabindex="0" aria-label="Choose or drop verification files">
-      <strong>Drop files here</strong> or click to choose<br>
-      <span style="font-size:13px">input-snapshot.json · result.json · calculator.wasm</span>
-    </div>
-    <input id="file-picker" type="file" multiple accept=".json,.wasm,application/json,application/wasm">
-    <div id="snapshot-status" class="status" hidden></div>
-    <div id="result-status" class="status" hidden></div>
-  </section>
+  <ol class="chain">
+    <li style="--i:1">
+      <span class="step-tag"><span class="addr">0x01 ·</span> Evidence</span>
+      <section class="panel">
+        <h2>Load your input snapshot</h2>
+        <p class="sub">Export it from the app: Verify Rewards → Download Verification Data → Input Snapshot.
+           You can also drop the Result File and a calculator.wasm from a
+           <a href="https://github.com/geniegenerate/reward-calculator/releases" rel="noopener">GitHub release</a>.</p>
+        <div id="dropzone" role="button" tabindex="0" aria-label="Choose or drop verification files">
+          <span class="corners" aria-hidden="true"></span>
+          <svg class="glyph" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <path d="M20 27V9m0 0l-7 7m7-7l7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 27v3a3 3 0 003 3h18a3 3 0 003-3v-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          <strong>Drop files here</strong> or click to choose
+          <span class="hint">input-snapshot.json · result.json · calculator.wasm</span>
+        </div>
+        <input id="file-picker" type="file" multiple accept=".json,.wasm,application/json,application/wasm">
+        <div id="snapshot-status" class="status" hidden></div>
+        <div id="result-status" class="status" hidden></div>
+      </section>
+    </li>
 
-  <section>
-    <h2><span class="step-no">2</span> The algorithm</h2>
-    <p class="sub">keccak256 of the binary below <em>is</em> the on-chain algorithm_id — the chain pins the exact
-       code, announced at least 7 days before it may compute rewards.</p>
-    <div id="wasm-info"></div>
-    <div id="wasm-status" class="status" hidden></div>
-  </section>
+    <li style="--i:2">
+      <span class="step-tag"><span class="addr">0x02 ·</span> Algorithm</span>
+      <section class="panel">
+        <h2>The exact code, pinned on-chain</h2>
+        <p class="sub">keccak256 of the binary below <em>is</em> the on-chain algorithm_id — announced at least
+           7 days before it may compute rewards, so anyone can audit it first.</p>
+        <div id="wasm-info"></div>
+        <div id="wasm-status" class="status" hidden></div>
+      </section>
+    </li>
 
-  <section>
-    <h2><span class="step-no">3</span> Verdict</h2>
-    <p class="sub">Input root recomputed from the snapshot; rewards recomputed by running the algorithm;
-       both compared against the immutable on-chain commitment.</p>
-    <div id="verdict" class="status" hidden></div>
-    <div id="verify-detail" style="margin-top:12px"></div>
-    <a id="explorer-link" hidden rel="noopener" target="_blank">Read the same commitment on BscScan ↗</a>
-  </section>
+    <li style="--i:3">
+      <span class="step-tag"><span class="addr">0x03 ·</span> Verdict</span>
+      <section class="panel">
+        <h2>Recomputed, then compared with the chain</h2>
+        <p class="sub">Input root recomputed from the snapshot; rewards recomputed by running the algorithm;
+           both compared against the immutable on-chain commitment.</p>
+        <div id="verdict" class="status" hidden></div>
+        <div id="verify-detail"></div>
+        <a id="explorer-link" hidden rel="noopener" target="_blank">READ THE SAME COMMITMENT ON BSCSCAN ↗</a>
+      </section>
+    </li>
+  </ol>
 
-  <section id="members-section" hidden>
-    <h2><span class="step-no">✓</span> Recomputed rewards</h2>
+  <section id="members-section" class="panel" hidden>
+    <h2>Recomputed rewards</h2>
     <p class="sub">Find your pseudonym (shown on the app's Verify Rewards page). Amounts in USDT.</p>
     <input id="members-filter" type="search" placeholder="Filter by pseudonym, e.g. P-00001" aria-label="Filter members">
-    <table>
-      <thead><tr><th>Pseudonym</th><th class="num">Loyalty</th><th class="num">Newcomer</th><th class="num">Credited</th></tr></thead>
-      <tbody id="members-body"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Pseudonym</th><th class="num">Loyalty</th><th class="num">Newcomer</th><th class="num">Credited</th></tr></thead>
+        <tbody id="members-body"></tbody>
+      </table>
+    </div>
     <div id="members-count"></div>
   </section>
 
-  <footer>
-    Prefer the command line? <code>wasmtime calculator.wasm &lt; calc-input.json</code> —
-    full recipe in the <a href="https://github.com/geniegenerate/reward-calculator" rel="noopener">open-source repository</a>.
-    This page is part of that repository; audit it before trusting it.
+  <footer style="--i:4">
+    <span class="term"><span class="ps1">$</span> wasmtime calculator.wasm &lt; calc-input.json <span class="ps1"># full recipe in the README</span></span>
+    <p class="fine">Prefer the command line? The
+       <a href="https://github.com/geniegenerate/reward-calculator" rel="noopener">open-source repository</a>
+       has the reproducible-build and Merkle recipes. This page is part of that repository —
+       audit it before trusting it.</p>
   </footer>
 </main>
 <script src="sha3.js"></script>
