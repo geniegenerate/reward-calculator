@@ -77,19 +77,58 @@ h.update(open('calculator.wasm','rb').read()); print('0x'+h.hexdigest())"
 The output must equal the `algorithm_id` above and the value announced on-chain.
 Note: `keccak256` is **not** the same as SHA3-256 — use a keccak implementation.
 
-## Run it
+## Run it — in the browser
 
-The calculator is a pure stdin → stdout filter over any WASI runtime:
+The easiest path is the hosted web calculator at
+<https://verify.geniegenerate.com/calculator> (its source is `web/calculator/`
+in this repository — audit it, or open it locally). Drop the input snapshot you
+exported from the app; the page hashes the WASM, runs it on your device,
+recomputes both Merkle roots, and compares them against the commitment it reads
+directly from the RewardVerifier contract over public BSC JSON-RPC. Nothing is
+sent to GenieGenerate.
+
+## Run it — command line
+
+The calculator is a pure stdin → stdout filter over any WASI runtime. Its input
+is the published snapshot's data with the metadata stripped: the snapshot you
+export from the app (or fetch from the public
+`/rewards/distributions/{date}/input-snapshot` endpoint) carries extra
+provenance fields (`challenge_date`, `algorithm_id`, `input_merkle_root`,
+`pool`, `newcomer_loop_config`, per-participant `pseudonym` and `_usdt` name
+suffixes) that the calculator deliberately rejects (`DisallowUnknownFields`).
+Map it first:
 
 ```sh
-wasmtime calculator.wasm < input-snapshot.json > result.json
+jq '{participants: [.participants[] | {ordering_key, loyalty_score,
+     completion_rank, lifetime_earnings: .lifetime_earnings_usdt,
+     wallet_balance: .wallet_balance_usdt, max_capacity: .max_capacity_usdt}],
+     loyalty_pool: .pool.loyalty_pool, newcomer_pool: .pool.newcomer_pool}' \
+  input-snapshot.json > calc-input.json
+
+wasmtime calculator.wasm < calc-input.json > result.json
 ```
 
-`input-snapshot.json` is the pseudonymized distribution snapshot you export from
-the app (or fetch from the public `/rewards/distributions/{date}/input-snapshot`
-endpoint). `result.json` is the per-participant reward result. To complete the
-trustless check, rebuild the Merkle root from `result.json` and confirm it equals
-the `result_merkle_root` committed on-chain for that distribution.
+`result.json` is the per-participant reward result. To complete the trustless
+check, rebuild the result Merkle root from it (leaf encoding below) and confirm
+it equals the `result_merkle_root` committed on-chain for that distribution —
+`getCommitment(challengeDate)` on the RewardVerifier contract, where
+`challengeDate` is the unix timestamp of 00:00 UTC on the distribution date.
+
+### Merkle encoding (for independent reimplementation)
+
+Both trees use OpenZeppelin **commutative (sorted-pair) keccak256** hashing,
+leaves ordered by `ordering_key` ascending, odd nodes promoted unchanged. All
+USDT amounts are exact integer **micro-units** (`amount × 10^6`; the 6-dp
+precision model).
+
+- input leaf — `keccak256(abi.encode(uint64 ordering_key, uint32 loyalty_score,
+  uint64 completion_rank, uint256 lifetime_earnings, uint256 wallet_balance,
+  uint256 max_capacity))`
+- result leaf — `keccak256(abi.encode(uint64 ordering_key,
+  uint256 loyalty_reward, uint256 newcomer_reward, uint256 credited_amount,
+  uint256 excess_amount, bool was_over_cap))`
+
+A reference implementation in plain JavaScript is `web/calculator/merkle.js`.
 
 ## What's here
 
@@ -98,6 +137,12 @@ cmd/reward-calculator/main.go        # WASI entrypoint: stdin → rewardcalc.Com
 internal/reward/rewardcalc/calc.go   # the reward math (grid + newcomer loops + 6-dp truncation)
 internal/reward/rewardcalc/json.go   # snapshot ⇄ result (de)serialization
 go.mod / go.sum                      # pinned toolchain + the single dependency (shopspring/decimal)
+web/calculator/                      # the hosted web calculator (verify.geniegenerate.com)
+  index.html / app.js                #   page + verification pipeline
+  merkle.js                          #   input/result leaf encoding + sorted-pair tree
+  wasi.js                            #   minimal WASI preview1 shim (stdin→stdout only)
+  chain.js                           #   eth_call getCommitment over public BSC RPC
+  sha3.js                            #   vendored js-sha3 0.9.3 (keccak256, MIT)
 ```
 
 This is the complete build closure of the published WASM — nothing else is
