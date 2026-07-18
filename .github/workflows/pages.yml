@@ -4,13 +4,7 @@
 name: deploy-pages
 
 on:
-  push:
-    branches: [main]
-  # A new algorithm release must redeploy the page, or it would keep serving
-  # the previous WASM (the hash-vs-README check below would also go stale).
-  release:
-    types: [published]
-  workflow_dispatch:
+  workflow_dispatch: # manual-only: run from the Actions tab
 
 permissions:
   contents: read
