@@ -28,6 +28,24 @@ grid math is unchanged from v3.7. The flat floor never rescaled with field size
 per-capita form makes "a sub-1¢-per-member credit isn't worth another loop" hold
 at any size.
 
+### Publishing a version — the step that is easy to miss
+
+The hosted verifier at <https://verify.geniegenerate.com/calculator> serves the
+**latest release asset**, fetched at build time. Cloudflare Pages rebuilds on
+**git push**, *not* on a GitHub release — so after publishing a release you must
+**update the anchor table below and push**, or the live page keeps serving the
+previous algorithm.
+
+```
+release published  →  update README anchor  →  PUSH  →  Cloudflare rebuilds
+                                                     →  ./scripts/verify-live.sh
+```
+
+The `verify-live` workflow runs this check automatically when a release is
+published (and weekly), so a forgotten push shows up as a failed check rather
+than a silently stale verifier. Full procedure:
+`company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md` → "The hosted verifier".
+
 ### Version history
 
 Each announced version's WASM is published as a release on this repo; check out

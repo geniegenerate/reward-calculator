@@ -1,0 +1,52 @@
+# Guards the one step of an algorithm release that is easy to forget.
+#
+# Cloudflare Pages rebuilds the hosted verifier on git PUSH, not on a GitHub
+# release. So publishing a release without pushing the README anchor update
+# leaves verify.geniegenerate.com serving the PREVIOUS algorithm — and the
+# build-time hash gate in scripts/cf-pages-build.sh cannot catch it, because it
+# never runs.
+#
+# This is a CHECK, not a deploy — it changes nothing. That is why it carries
+# automatic triggers while the deploy workflow stays manual-dispatch only: the
+# failure mode it catches is silent, and a silent wrong answer on a trust
+# surface is the worst outcome this repository has.
+#
+# It is quiet by design: GitHub only notifies on FAILURE. A failure right after
+# publishing a release is not a bug — it is the reminder to push.
+name: verify-live
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: "17 3 * * 1" # weekly, catches drift from any cause
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: deployed == latest release == README anchor
+        run: ./scripts/verify-live.sh
+      - name: What to do if this failed
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'MD'
+          ## The live verifier does not match the announced algorithm
+
+          Most likely you published a release but have not pushed yet.
+          Cloudflare Pages rebuilds on **push**, not on release.
+
+          Fix:
+          1. Update the on-chain anchor table in `README.md` with the new `algorithm_id`.
+          2. **Push to `main`** — that push is what redeploys the page.
+          3. Re-run this workflow (or `./scripts/verify-live.sh` locally).
+
+          Full procedure: `company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md`
+          → "The hosted verifier".
+          MD
+          exit 1
