@@ -208,7 +208,7 @@ func sortNewcomer(participants []Participant) []Participant {
 	return sorted
 }
 
-// computeGridRewards distributes a pool through the 14-rank binary-tree grid.
+// computeGridRewards distributes a pool through the 14-rank leaderboard grid.
 func computeGridRewards(sorted []Participant, pool decimal.Decimal) (map[int64]decimal.Decimal, decimal.Decimal) {
 	n := len(sorted)
 	rewards := make(map[int64]decimal.Decimal, n)
@@ -444,7 +444,7 @@ func ranksFromSorted(sorted []Participant) map[int64]int {
 	return ranks
 }
 
-// gridRank returns the 1-indexed binary-tree depth of a position.
+// gridRank returns the 1-indexed rank (grid depth) of a position.
 // Integer bit-length — exact and deterministic, replacing the float
 // math.Floor(math.Log2(pos))+1 in grid_compute.go (which is a latent
 // cross-platform determinism risk). For all pos>0 the two agree.
