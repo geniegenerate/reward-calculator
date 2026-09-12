@@ -1,0 +1,20 @@
+# gitleaks configuration — the local secret-in-git gate (scripts/lib/gitleaks_gate.sh,
+# run from this repo's pre-commit and pre-push hooks; self-test:
+# scripts/test-gitleaks-gate.sh).
+#
+# This repo is PUBLIC: it is the open-source reward algorithm, anchored on-chain and
+# served at verify.geniegenerate.com/calculator. A credential committed here is
+# exposed the moment it lands, and the repo's whole value is that anyone can read it.
+#
+# Extends gitleaks' default ruleset. Any allowlist below is PATHS ONLY, and only
+# paths whose contents are by construction not credentials. A genuine false
+# positive elsewhere gets an inline `gitleaks:allow` on that line, so the
+# exception is visible in review next to the string it excuses.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Go test files — fixtures and golden values by construction"
+paths = [
+  '''_test\.go$''',
+]
