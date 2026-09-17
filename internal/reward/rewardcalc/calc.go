@@ -65,8 +65,9 @@ type LoopResult struct {
 	Participants int                       `json:"participants"`
 	Distributed  decimal.Decimal           `json:"distributed"`
 	IsFinal      bool                      `json:"is_final"`
-	Ranks        map[int64]int             `json:"ranks"`   // OrderingKey -> 1-based loop rank
-	Credits      map[int64]decimal.Decimal `json:"credits"` // OrderingKey -> per-loop credit
+	IsSurplus    bool                      `json:"is_surplus"` // AlgoV4 surplus-share pass over every participant
+	Ranks        map[int64]int             `json:"ranks"`      // OrderingKey -> 1-based loop rank
+	Credits      map[int64]decimal.Decimal `json:"credits"`    // OrderingKey -> per-loop credit
 }
 
 // Output is the complete, deterministic result of a distribution computation.
@@ -278,6 +279,9 @@ func computeNewcomerLoops(
 	}
 
 	capEnforced := newcomerCap.IsPositive()
+	// Cap surplus: what the cap clamped off in the final loop and post-final.
+	// AlgoV4: shared equally among every participant after all loops.
+	surplus := decimal.Zero
 	loopPool := pool
 
 	for loopN := 1; loopN <= maxLoopCount; loopN++ {
@@ -308,7 +312,7 @@ func computeNewcomerLoops(
 						remaining = decimal.Zero
 					}
 					if credit.GreaterThan(remaining) {
-						tomorrowPool = tomorrowPool.Add(credit.Sub(remaining))
+						surplus = surplus.Add(credit.Sub(remaining))
 						credit = remaining
 					}
 				}
@@ -375,11 +379,49 @@ func computeNewcomerLoops(
 	if capEnforced {
 		for key, total := range rewards {
 			if total.GreaterThan(newcomerCap) {
-				tomorrowPool = tomorrowPool.Add(total.Sub(newcomerCap))
+				surplus = surplus.Add(total.Sub(newcomerCap))
 				rewards[key] = newcomerCap
 			}
 		}
 	}
+
+	// AlgoV4 surplus share (mirrors grid_compute.go shareSurplus): the surplus
+	// is split equally among EVERY participant of the day, uncapped, as one
+	// extra IsSurplus loop; a surplus too small to give everyone 0.000001 is
+	// carried to tomorrow unchanged (no empty loop record is minted).
+	if surplus.IsPositive() && len(allParticipants) > 0 {
+		nDec := decimal.NewFromInt(int64(len(allParticipants)))
+		perMember := surplus.Div(nDec).Truncate(6)
+		if perMember.IsPositive() {
+			post := make([]Participant, len(allParticipants))
+			copy(post, allParticipants)
+			for i, p := range post {
+				earned := p.LifetimeEarnings
+				if lr, ok := loyaltyKeep[p.OrderingKey]; ok {
+					earned = earned.Add(lr)
+				}
+				if nr, ok := rewards[p.OrderingKey]; ok {
+					earned = earned.Add(nr)
+				}
+				post[i].LifetimeEarnings = earned
+			}
+			record := LoopResult{
+				LoopNumber:   len(loops) + 1,
+				Participants: len(allParticipants),
+				IsSurplus:    true,
+				Ranks:        ranksFromSorted(sortNewcomer(post)),
+				Credits:      make(map[int64]decimal.Decimal, len(allParticipants)),
+			}
+			for _, p := range allParticipants {
+				rewards[p.OrderingKey] = rewards[p.OrderingKey].Add(perMember)
+				record.Credits[p.OrderingKey] = perMember
+			}
+			record.Distributed = perMember.Mul(nDec)
+			loops = append(loops, record)
+			surplus = surplus.Sub(record.Distributed)
+		}
+	}
+	tomorrowPool = tomorrowPool.Add(surplus)
 	return rewards, tomorrowPool, loops
 }
 

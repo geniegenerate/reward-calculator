@@ -56,6 +56,12 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | genesis | `0x4b0575ef…ceb94633b` | 2026-06-08 | initial testnet anchor |
 | `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
+| `v4.0` | `0x892bd64a…0b7391a9` | *staged — not yet announced* | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
+
+`v4.0` is in this tree (`main`) but is **not** the anchored algorithm until its on-chain
+announcement and 7-day timelock have run; the anchor table above stays on `v3.9` until then.
+Rebuilding `main` therefore yields the `v4.0` id, while the released asset the hosted
+verifier serves is still `v3.9` — check out the `v3.9` tag to reproduce the live anchor.
 
 ## Reproducible build
 
