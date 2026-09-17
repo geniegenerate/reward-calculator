@@ -148,10 +148,36 @@ precision model).
 
 A reference implementation in plain JavaScript is `web/calculator/merkle.js`.
 
+## See the shape — simulate a population
+
+`cmd/distribution-sim` runs the exact `rewardcalc` package over a synthetic
+member population for one or many consecutive days and prints what comes out:
+income bands with the actual min/max credited in each, day-to-day leaderboard
+turnover, the per-member ceiling, and cumulative totals. It answers "what does
+this algorithm do at 50,000 members?" without production data.
+
+```sh
+go run ./cmd/distribution-sim -members 50000 -days 30 -newcomer-pool 50000 -carry -scenario longtail
+go run ./cmd/distribution-sim -help   # scenarios: equal | uniform | longtail | cohort | cohort-shops
+```
+
+Properties you can check with it (all follow from the algorithm, none from the
+population you pick): the per-member ceiling is `16,383 × target × 0.9 ÷ 14 ×
+30%` per grid (≈ $316 at the $1.00 target) and does not move with population
+or pool size; the number of members with a full 13-rank window is about `N ÷
+8,192`; the average credit is 90% of the average cashback contributed; the
+newcomer grid re-sorts by lifetime earnings so its top 100 turns over completely
+every day; and every member reaches the newcomer ceiling only once the newcomer
+inflow exceeds `N × ceiling` per day, past which the carried-over remainder
+grows without bound and bears the 10% deduction again on every re-entry. The
+tool is not compiled into `calculator.wasm`; the on-chain `algorithm_id` is
+unaffected by it.
+
 ## What's here
 
 ```
 cmd/reward-calculator/main.go        # WASI entrypoint: stdin → rewardcalc.ComputeJSON → stdout
+cmd/distribution-sim/main.go         # dev tool: runs the same math over a synthetic population (never in the WASM)
 internal/reward/rewardcalc/calc.go   # the reward math (grid + newcomer loops + 6-dp truncation)
 internal/reward/rewardcalc/json.go   # snapshot ⇄ result (de)serialization
 go.mod / go.sum                      # pinned toolchain + the single dependency (shopspring/decimal)
