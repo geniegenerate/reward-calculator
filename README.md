@@ -56,10 +56,11 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | genesis | `0x4b0575ef…ceb94633b` | 2026-06-08 | initial testnet anchor |
 | `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
-| `v4.0` | `0x892bd64a…0b7391a9` | *staged — not yet announced* | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
+| `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25T15:05:55Z (announced 2026-09-18 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x9fb17c2e…94afb25e`, block 131763757) | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
 
-`v4.0` is in this tree (`main`) but is **not** the anchored algorithm until its on-chain
-announcement and 7-day timelock have run; the anchor table above stays on `v3.9` until then.
+`v4.0` is in this tree (`main`) and was announced on-chain on 2026-09-18, but it is **not**
+the anchored algorithm until its 7-day timelock runs out at `2026-09-25T15:05:55Z`; the
+anchor table above stays on `v3.9` until then.
 Rebuilding `main` therefore yields the `v4.0` id, while the released asset the hosted
 verifier serves is still `v3.9` — check out the `v3.9` tag to reproduce the live anchor.
 
@@ -184,8 +185,11 @@ or pool size; the number of members with a full 13-rank window is about `N ÷
 8,192`; the average credit is 90% of the average cashback contributed; the
 newcomer grid re-sorts by lifetime earnings so its top 100 turns over completely
 every day; and every member reaches the newcomer ceiling only once the newcomer
-inflow exceeds `N × ceiling` per day, past which the carried-over remainder
-grows without bound and bears the 10% deduction again on every re-entry. The
+inflow exceeds `N × ceiling` per day. Past that point the two versions in this
+repo differ: under `v3.9` the carried-over remainder grows without bound and
+bears the 10% deduction again on every re-entry; under `v4.0` (this tree, effective
+2026-09-25) that surplus is instead shared equally among the day's participants
+the same day, so nothing carries and nothing compounds. The
 tool is not compiled into `calculator.wasm`; the on-chain `algorithm_id` is
 unaffected by it.
 

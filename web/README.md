@@ -26,7 +26,12 @@ Cloudflare builds on **git push**, not on GitHub releases, so publishing a
 release alone does **not** redeploy the page — it would keep serving the
 previous WASM. The release checklist is therefore:
 
-1. Publish the GitHub release with the new `calculator.wasm`.
+1. Publish the GitHub release with the new `calculator.wasm` — as a **pre-release**
+   while its effective date is still ahead. The on-chain announce needs the
+   immutable asset URL before the timelock starts, but `releases/latest` is what
+   this page builds from and must keep serving the algorithm actually in force;
+   GitHub excludes pre-releases from `latest`. Promote it to a full release on or
+   after the effective date, then continue.
 2. Update this repo's README on-chain anchor table with the new
    `algorithm_id`, and **push** — that push is what triggers the rebuild, and
    the build fails if the two disagree.
