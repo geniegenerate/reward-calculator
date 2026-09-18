@@ -1,0 +1,202 @@
+# GenieGenerate Reward Calculator
+
+The **open-source, reproducible reward calculator** behind GenieGenerate's
+trustless daily-reward distribution. This is the exact program whose compiled
+WebAssembly binary is anchored on-chain: `keccak256(calculator.wasm)` **is** the
+`algorithm_id` published in the `RewardVerifier` contract. Anyone can rebuild the
+WASM from this source, confirm the hash matches the on-chain announcement, run it
+on their own exported distribution snapshot, and independently reproduce their
+reward — no trust in GenieGenerate's servers required.
+
+## On-chain anchor (v4.0)
+
+| | |
+|---|---|
+| `algorithm_id` | `0x892bd64ae40b3f18ca7b3e19720b52644284e227a7cbc421d6d698dd0b7391a9` |
+| Contract (`RewardVerifier`, BSC testnet) | `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7` |
+| Announce tx | `0x9fb17c2e6e8aa7fed2a64b6326f8749219c4c1f8fa5627c39cc5fa9e94afb25e` |
+| Effective | `2026-09-25T15:05:55Z` (after the contract's 7-day MIN_TIMELOCK) |
+
+`algorithm_id = "0x" + keccak256(calculator.wasm)`. The 7-day timelock between
+announcement and effectiveness exists precisely so anyone can verify this source
+and its compiled artifact *before* it computes any rewards.
+
+**v4.0** shares the newcomer-cap surplus instead of carrying it. After every
+newcomer loop has run, the cap surplus — the final-loop clamp excess plus the
+post-final clamp excess — is split equally among every participant of that day,
+uncapped, and recorded as one extra loop flagged `is_surplus`. Only the 6-decimal
+division dust still carries to the next day. Per-loop cap excess still flows to
+the next loop, and both the v3.7 grid math and the v3.9 per-capita final-loop
+floor are unchanged. Below saturation the output is byte-identical to v3.9; above
+it nobody receives less than v3.9 would have given them.
+
+### Publishing a version — the step that is easy to miss
+
+The hosted verifier at <https://verify.geniegenerate.com/calculator> serves the
+**latest release asset**, fetched at build time. Cloudflare Pages rebuilds on
+**git push**, *not* on a GitHub release — so after publishing a release you must
+**update the anchor table below and push**, or the live page keeps serving the
+previous algorithm.
+
+```
+release published  →  update README anchor  →  PUSH  →  Cloudflare rebuilds
+                                                     →  ./scripts/verify-live.sh
+```
+
+The `verify-live` workflow runs this check automatically when a release is
+published (and weekly), so a forgotten push shows up as a failed check rather
+than a silently stale verifier. Full procedure:
+`company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md` → "The hosted verifier".
+
+### Version history
+
+Each announced version's WASM is published as a release on this repo; check out
+the matching tag and rebuild to reproduce that version's `algorithm_id`.
+
+| version | `algorithm_id` | effective | change |
+|---|---|---|---|
+| genesis | `0x4b0575ef…ceb94633b` | 2026-06-08 | initial testnet anchor |
+| `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
+| `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
+| `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25 | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
+
+`v4.0` is the anchored algorithm as of its effective date above; `main` rebuilds to it. To
+reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
+
+## Reproducible build
+
+The WASM bytes — and therefore the `algorithm_id` — depend on the Go toolchain
+and the module path, so both are pinned. Build with:
+
+```sh
+GOTOOLCHAIN=go1.25.11 CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm \
+  go build -trimpath -buildvcs=false -o calculator.wasm ./cmd/reward-calculator
+```
+
+- **`GOTOOLCHAIN=go1.25.11`** — a different Go version produces different WASM
+  bytes (hence a different `algorithm_id`). `go.mod` pins `toolchain go1.25.11`;
+  the toolchain is auto-downloaded if you don't have it. Treat a toolchain bump
+  like an algorithm change.
+- **`-trimpath`** — strips local filesystem paths, leaving only the module-
+  relative import paths in the binary. This is why the build is identical across
+  machines, and why the module path below must not change.
+- **module path** — `go.mod` declares `module github.com/geniegenerate/backend`.
+  `-trimpath` bakes import paths (e.g. `.../internal/reward/rewardcalc`) into the
+  binary, so the module path is part of the hash. It is intentionally kept as the
+  origin module path even though this repo is named `reward-calculator`.
+- **`CGO_ENABLED=0`, `-buildvcs=false`** — no C linkage, no embedded VCS stamp,
+  so nothing host-specific leaks into the bytes.
+
+### Confirm the hash
+
+```sh
+# foundry
+cast keccak "$(xxd -p -c0 calculator.wasm)"
+
+# or python (pycryptodome)
+python3 -c "from Crypto.Hash import keccak; h=keccak.new(digest_bits=256); \
+h.update(open('calculator.wasm','rb').read()); print('0x'+h.hexdigest())"
+```
+
+The output must equal the `algorithm_id` above and the value announced on-chain.
+Note: `keccak256` is **not** the same as SHA3-256 — use a keccak implementation.
+
+## Run it — in the browser
+
+The easiest path is the hosted web calculator at
+<https://verify.geniegenerate.com/calculator> (its source is `web/calculator/`
+in this repository — audit it, or open it locally). Drop the input snapshot you
+exported from the app; the page hashes the WASM, runs it on your device,
+recomputes both Merkle roots, and compares them against the commitment it reads
+directly from the RewardVerifier contract over public BSC JSON-RPC. Nothing is
+sent to GenieGenerate.
+
+## Run it — command line
+
+The calculator is a pure stdin → stdout filter over any WASI runtime. Its input
+is the published snapshot's data with the metadata stripped: the snapshot you
+export from the app (or fetch from the public
+`/rewards/distributions/{date}/input-snapshot` endpoint) carries extra
+provenance fields (`challenge_date`, `algorithm_id`, `input_merkle_root`,
+`pool`, `newcomer_loop_config`, per-participant `pseudonym` and `_usdt` name
+suffixes) that the calculator deliberately rejects (`DisallowUnknownFields`).
+Map it first:
+
+```sh
+jq '{participants: [.participants[] | {ordering_key, loyalty_score,
+     completion_rank, lifetime_earnings: .lifetime_earnings_usdt,
+     wallet_balance: .wallet_balance_usdt, max_capacity: .max_capacity_usdt}],
+     loyalty_pool: .pool.loyalty_pool, newcomer_pool: .pool.newcomer_pool}' \
+  input-snapshot.json > calc-input.json
+
+wasmtime calculator.wasm < calc-input.json > result.json
+```
+
+`result.json` is the per-participant reward result. To complete the trustless
+check, rebuild the result Merkle root from it (leaf encoding below) and confirm
+it equals the `result_merkle_root` committed on-chain for that distribution —
+`getCommitment(challengeDate)` on the RewardVerifier contract, where
+`challengeDate` is the unix timestamp of 00:00 UTC on the distribution date.
+
+### Merkle encoding (for independent reimplementation)
+
+Both trees use OpenZeppelin **commutative (sorted-pair) keccak256** hashing,
+leaves ordered by `ordering_key` ascending, odd nodes promoted unchanged. All
+USDT amounts are exact integer **micro-units** (`amount × 10^6`; the 6-dp
+precision model).
+
+- input leaf — `keccak256(abi.encode(uint64 ordering_key, uint32 loyalty_score,
+  uint64 completion_rank, uint256 lifetime_earnings, uint256 wallet_balance,
+  uint256 max_capacity))`
+- result leaf — `keccak256(abi.encode(uint64 ordering_key,
+  uint256 loyalty_reward, uint256 newcomer_reward, uint256 credited_amount,
+  uint256 excess_amount, bool was_over_cap))`
+
+A reference implementation in plain JavaScript is `web/calculator/merkle.js`.
+
+## See the shape — simulate a population
+
+`cmd/distribution-sim` runs the exact `rewardcalc` package over a synthetic
+member population for one or many consecutive days and prints what comes out:
+income bands with the actual min/max credited in each, day-to-day leaderboard
+turnover, the per-member ceiling, and cumulative totals. It answers "what does
+this algorithm do at 50,000 members?" without production data.
+
+```sh
+go run ./cmd/distribution-sim -members 50000 -days 30 -newcomer-pool 50000 -carry -scenario longtail
+go run ./cmd/distribution-sim -help   # scenarios: equal | uniform | longtail | cohort | cohort-shops
+```
+
+Properties you can check with it (all follow from the algorithm, none from the
+population you pick): the per-member ceiling is `16,383 × target × 0.9 ÷ 14 ×
+30%` per grid (≈ $316 at the $1.00 target) and does not move with population
+or pool size; the number of members with a full 13-rank window is about `N ÷
+8,192`; the average credit is 90% of the average cashback contributed; the
+newcomer grid re-sorts by lifetime earnings so its top 100 turns over completely
+every day; and every member reaches the newcomer ceiling only once the newcomer
+inflow exceeds `N × ceiling` per day, past which the carried-over remainder
+grows without bound and bears the 10% deduction again on every re-entry. The
+tool is not compiled into `calculator.wasm`; the on-chain `algorithm_id` is
+unaffected by it.
+
+## What's here
+
+```
+cmd/reward-calculator/main.go        # WASI entrypoint: stdin → rewardcalc.ComputeJSON → stdout
+cmd/distribution-sim/main.go         # dev tool: runs the same math over a synthetic population (never in the WASM)
+internal/reward/rewardcalc/calc.go   # the reward math (grid + newcomer loops + 6-dp truncation)
+internal/reward/rewardcalc/json.go   # snapshot ⇄ result (de)serialization
+go.mod / go.sum                      # pinned toolchain + the single dependency (shopspring/decimal)
+web/calculator/                      # the hosted web calculator (verify.geniegenerate.com)
+  index.html / app.js                #   page + verification pipeline
+  merkle.js                          #   input/result leaf encoding + sorted-pair tree
+  wasi.js                            #   minimal WASI preview1 shim (stdin→stdout only)
+  chain.js                           #   eth_call getCommitment over public BSC RPC
+  sha3.js                            #   vendored js-sha3 0.9.3 (keccak256, MIT)
+```
+
+This is the complete build closure of the published WASM — nothing else is
+compiled into the artifact. The full equivalence/determinism test suite that
+proves this code stays bit-locked to the production money path lives in
+GenieGenerate's backend; this repository carries exactly what's needed to
+rebuild and verify the on-chain artifact.

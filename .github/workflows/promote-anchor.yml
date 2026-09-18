@@ -1,0 +1,85 @@
+# Flips the public anchor to v4.0 the day its announced effective date passes.
+#
+# The gap this closes: the hosted verifier builds from `releases/latest` and
+# Cloudflare Pages rebuilds on PUSH, not on a release. So at an effective date
+# three things must happen together — the release stops being a pre-release, the
+# README anchor names the new version, and something pushes — or the public
+# calculator keeps serving the PREVIOUS algorithm while the new one is already
+# paying people. `verify-live` DETECTS that state; nothing prevented it. This does.
+#
+# Scheduled, not manual, on purpose: the whole failure mode is a human remembering
+# a date a week later. It is idempotent and safe to run every day forever — before
+# the date it prints "not due" and stops; after the swap it prints "nothing to do".
+#
+# 16:00 UTC is chosen so the first eligible run is 2026-09-25T16:00Z, ~55 min after
+# the algorithm takes force and ~8 h BEFORE the first distribution that uses it
+# (the 00:00 UTC run on 2026-09-26). The public verifier therefore flips ahead of
+# the first payout under the new math, not after it.
+#
+# A failed scheduled run emails the repo owner — that is the backstop if the
+# guarded swap refuses (e.g. someone edited README.md since it was prepared).
+name: promote-anchor
+
+on:
+  schedule:
+    - cron: "0 16 * * *" # UTC — see the note above
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-anchor
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Promote the release and swap the anchor, if due
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/promote-anchor.sh
+
+      - name: Push, so Cloudflare rebuilds
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- README.md; then
+            echo "README unchanged — nothing to push."
+            exit 0
+          fi
+          git config user.name  "geniegenerate-bot"
+          git config user.email "noreply@geniegenerate.com"
+          git add README.md
+          git commit -F - <<'MSG'
+          docs: the on-chain anchor moves to v4.0
+
+          The announced effective date has passed, so the hosted verifier must now
+          serve v4.0. Cloudflare Pages rebuilds on push, not on a release, which is
+          why this commit exists at all.
+
+          The text was prepared and reviewed by hand in anchor/README.v4.0.md on
+          2026-09-18; this job only swapped it in, after checking README.md was still
+          the exact file that plan was written against.
+          MSG
+          git push
+
+      - name: Confirm the LIVE page actually moved
+        run: |
+          set -uo pipefail
+          if git log -1 --format=%s | grep -q "anchor moves to v4.0"; then
+            echo "Waiting for the Cloudflare Pages rebuild…"
+            for i in $(seq 1 10); do
+              sleep 45
+              if ./scripts/verify-live.sh; then
+                echo "live page is serving the announced algorithm"; exit 0
+              fi
+              echo "  attempt $i: not yet"
+            done
+            echo "STOP: the live page is still not serving the announced algorithm."
+            echo "      The swap and push succeeded; the Pages build is the problem."
+            exit 1
+          fi
+          echo "No swap happened this run — nothing to confirm."
