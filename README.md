@@ -63,6 +63,16 @@ announcement and 7-day timelock have run; the anchor table above stays on `v3.9`
 Rebuilding `main` therefore yields the `v4.0` id, while the released asset the hosted
 verifier serves is still `v3.9` — check out the `v3.9` tag to reproduce the live anchor.
 
+The `v4.0` artifact itself is published, as a **pre-release**, at
+<https://github.com/geniegenerate/reward-calculator/releases/tag/v4.0> — so it can be audited
+during the timelock and so the on-chain announcement can pin an immutable `wasm_url`. A
+pre-release is deliberately excluded from `releases/latest`, which is what the hosted verifier
+builds from, so publishing it cannot move the live calculator off the announced algorithm.
+Once the announcement's timelock has expired: mark `v4.0` as the latest release, update the
+anchor table above, and **push**. Until that push, the elided `v4.0` hash in the table is also
+a safety net — if `v4.0` became `latest` early, the Pages build's hash check would fail closed
+rather than quietly serve an algorithm that is not yet in force.
+
 ## Reproducible build
 
 The WASM bytes — and therefore the `algorithm_id` — depend on the Go toolchain
