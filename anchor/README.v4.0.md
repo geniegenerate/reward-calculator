@@ -58,7 +58,7 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | genesis | `0x4b0575ef…ceb94633b` | 2026-06-08 | initial testnet anchor |
 | `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
-| `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25 | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
+| `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25T15:05:55Z (announced 2026-09-18 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x9fb17c2e…94afb25e`, block 131763757) | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
 
 `v4.0` is the anchored algorithm as of its effective date above; `main` rebuilds to it. To
 reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
@@ -174,8 +174,11 @@ or pool size; the number of members with a full 13-rank window is about `N ÷
 8,192`; the average credit is 90% of the average cashback contributed; the
 newcomer grid re-sorts by lifetime earnings so its top 100 turns over completely
 every day; and every member reaches the newcomer ceiling only once the newcomer
-inflow exceeds `N × ceiling` per day, past which the carried-over remainder
-grows without bound and bears the 10% deduction again on every re-entry. The
+inflow exceeds `N × ceiling` per day. Past that point the two versions in this
+repo differ: under `v3.9` (anchored until 2026-09-25) the carried-over remainder
+grows without bound and bears the 10% deduction again on every re-entry; under
+`v4.0` (the anchored algorithm) that surplus is instead shared equally among the
+day's participants the same day, so nothing carries and nothing compounds. The
 tool is not compiled into `calculator.wasm`; the on-chain `algorithm_id` is
 unaffected by it.
 
