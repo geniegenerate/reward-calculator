@@ -8,25 +8,27 @@ WASM from this source, confirm the hash matches the on-chain announcement, run i
 on their own exported distribution snapshot, and independently reproduce their
 reward — no trust in GenieGenerate's servers required.
 
-## On-chain anchor (v3.9)
+## On-chain anchor (v4.0)
 
 | | |
 |---|---|
-| `algorithm_id` | `0x26512565c91b76c1b1401dc41d75412f490a3fc7d76aef18d8e4ed47d8ef41e9` |
-| Contract (`RewardVerifier`, BSC testnet) | `0x7fFeeEa9ED233B7c50aD291A4d8044249ABF2174` |
-| Announce tx | `0x45172314ccf6efc0644d21a73dd2d2088f3c935ab2ca387fec1ea52e5d5a76dc` |
-| Effective | `2026-06-23T03:15:46Z` (after the contract's 7-day MIN_TIMELOCK) |
+| `algorithm_id` | `0x892bd64ae40b3f18ca7b3e19720b52644284e227a7cbc421d6d698dd0b7391a9` |
+| Contract (`RewardVerifier`, BSC testnet) | `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7` |
+| Announce tx | `0x9fb17c2e6e8aa7fed2a64b6326f8749219c4c1f8fa5627c39cc5fa9e94afb25e` |
+| Effective | `2026-09-25T15:05:55Z` (after the contract's 7-day MIN_TIMELOCK) |
 
 `algorithm_id = "0x" + keccak256(calculator.wasm)`. The 7-day timelock between
 announcement and effectiveness exists precisely so anyone can verify this source
 and its compiled artifact *before* it computes any rewards.
 
-**v3.9** changes the newcomer-leaderboard final-loop trigger from a flat
-`pool ≤ $1.00` floor to per-capita `pool ≤ $0.01 × eligible participants`; the
-grid math is unchanged from v3.7. The flat floor never rescaled with field size
-(at very large fields it fell below the grid's 6-decimal viability floor), so the
-per-capita form makes "a sub-1¢-per-member credit isn't worth another loop" hold
-at any size.
+**v4.0** shares the newcomer-cap surplus instead of carrying it. After every
+newcomer loop has run, the cap surplus — the final-loop clamp excess plus the
+post-final clamp excess — is split equally among every participant of that day,
+uncapped, and recorded as one extra loop flagged `is_surplus`. Only the 6-decimal
+division dust still carries to the next day. Per-loop cap excess still flows to
+the next loop, and both the v3.7 grid math and the v3.9 per-capita final-loop
+floor are unchanged. Below saturation the output is byte-identical to v3.9; above
+it nobody receives less than v3.9 would have given them.
 
 ### Publishing a version — the step that is easy to miss
 
@@ -58,21 +60,8 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
 | `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25T15:05:55Z (announced 2026-09-18 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x9fb17c2e…94afb25e`, block 131763757) | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
 
-`v4.0` is in this tree (`main`) and was announced on-chain on 2026-09-18, but it is **not**
-the anchored algorithm until its 7-day timelock runs out at `2026-09-25T15:05:55Z`; the
-anchor table above stays on `v3.9` until then.
-Rebuilding `main` therefore yields the `v4.0` id, while the released asset the hosted
-verifier serves is still `v3.9` — check out the `v3.9` tag to reproduce the live anchor.
-
-The `v4.0` artifact itself is published, as a **pre-release**, at
-<https://github.com/geniegenerate/reward-calculator/releases/tag/v4.0> — so it can be audited
-during the timelock and so the on-chain announcement can pin an immutable `wasm_url`. A
-pre-release is deliberately excluded from `releases/latest`, which is what the hosted verifier
-builds from, so publishing it cannot move the live calculator off the announced algorithm.
-Once the announcement's timelock has expired: mark `v4.0` as the latest release, update the
-anchor table above, and **push**. Until that push, the elided `v4.0` hash in the table is also
-a safety net — if `v4.0` became `latest` early, the Pages build's hash check would fail closed
-rather than quietly serve an algorithm that is not yet in force.
+`v4.0` is the anchored algorithm as of its effective date above; `main` rebuilds to it. To
+reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
 
 ## Reproducible build
 
@@ -186,10 +175,10 @@ or pool size; the number of members with a full 13-rank window is about `N ÷
 newcomer grid re-sorts by lifetime earnings so its top 100 turns over completely
 every day; and every member reaches the newcomer ceiling only once the newcomer
 inflow exceeds `N × ceiling` per day. Past that point the two versions in this
-repo differ: under `v3.9` the carried-over remainder grows without bound and
-bears the 10% deduction again on every re-entry; under `v4.0` (this tree, effective
-2026-09-25) that surplus is instead shared equally among the day's participants
-the same day, so nothing carries and nothing compounds. The
+repo differ: under `v3.9` (anchored until 2026-09-25) the carried-over remainder
+grows without bound and bears the 10% deduction again on every re-entry; under
+`v4.0` (the anchored algorithm) that surplus is instead shared equally among the
+day's participants the same day, so nothing carries and nothing compounds. The
 tool is not compiled into `calculator.wasm`; the on-chain `algorithm_id` is
 unaffected by it.
 
