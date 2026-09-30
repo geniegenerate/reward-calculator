@@ -26,6 +26,13 @@
 #
 # Idempotent: safe to run every day forever. Exit 0 = nothing to do or done; 1 = it
 # needs a human. Set DRY_RUN=1 to print the decision without touching anything.
+#
+# PER-VERSION, and currently SPENT: the constants below name v4.0, which it flipped
+# on 2026-09-26, so today it exits 0 with "anchor already on v4.0". Its workflow's
+# schedule was disarmed 2026-09-30 so a permanently-green run could not read as
+# coverage for a version it does not cover. Re-arming for a new version is four
+# steps, listed in .github/workflows/promote-anchor.yml's header and owned by
+# company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 

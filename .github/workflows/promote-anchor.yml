@@ -16,13 +16,37 @@
 # (the 00:00 UTC run on 2026-09-26). The public verifier therefore flips ahead of
 # the first payout under the new math, not after it.
 #
-# A failed scheduled run emails the repo owner — that is the backstop if the
-# guarded swap refuses (e.g. someone edited README.md since it was prepared).
+# A failed run emails the repo owner — that is the backstop if the guarded swap
+# refuses (e.g. someone edited README.md since it was prepared).
+#
+# ============================================================================
+# DISARMED 2026-09-30, AFTER IT DID ITS JOB. It flipped the anchor to v4.0 on
+# 2026-09-26 (commit "docs: the on-chain anchor moves to v4.0"), and every run
+# since has printed "anchor already on v4.0 — nothing to do".
+#
+# Why disarm rather than leave a harmless green no-op: this job is PER-VERSION.
+# Its constants below name v4.0 and only v4.0, so a daily green run called
+# "promote-anchor" would tell a future reader that anchor promotion is automated
+# when the next version is not covered at all. A check that cannot fail is not a
+# check, and false coverage is worse than none. The ongoing guard already exists
+# and is version-independent: verify-live.yml asserts deployed == releases/latest
+# == README anchor, weekly and on every published release.
+#
+# TO RE-ARM FOR THE NEXT VERSION (the cutover procedure in
+# company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md owns this step):
+#   1. in scripts/promote-anchor.sh set TAG / EFFECTIVE / ID / POST / PRE_SHA_FILE
+#      for the new version;
+#   2. write the post-cutover README by hand as anchor/README.<ver>.md and record
+#      the CURRENT README's checksum in anchor/README.pre-<ver>.sha256 — the job
+#      refuses to act if README.md is not that exact file, so it never guesses;
+#   3. restore the `schedule:` block below, picking an hour that lands AFTER the
+#      effective instant and BEFORE the first distribution that uses it;
+#   4. dispatch it once to see it say "not due", which proves it is wired.
+# ============================================================================
 name: promote-anchor
 
 on:
-  schedule:
-    - cron: "0 16 * * *" # UTC — see the note above
+  # schedule: re-add when re-arming for a new version — see the block above.
   workflow_dispatch:
 
 permissions:
