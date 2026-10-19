@@ -171,7 +171,7 @@ Properties you can check with it (all follow from the algorithm, none from the
 population you pick): the per-member ceiling is `16,383 × target × 0.9 ÷ 14 ×
 30%` per grid (≈ $316 at the $1.00 target) and does not move with population
 or pool size; the number of members with a full 13-rank window is about `N ÷
-8,192`; the average credit is 90% of the average cashback contributed; the
+8,192`; the average credit is 90% of the average merchant discount (cashback) contributed; the
 newcomer grid re-sorts by lifetime earnings so its top 100 turns over completely
 every day; and every member reaches the newcomer ceiling only once the newcomer
 inflow exceeds `N × ceiling` per day. Past that point the two versions in this
