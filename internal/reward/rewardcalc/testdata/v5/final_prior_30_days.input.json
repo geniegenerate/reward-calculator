@@ -1,0 +1,26 @@
+{
+  "participants": [
+    {
+      "ordering_key": 1,
+      "loyalty_score": 1,
+      "completion_rank": 1,
+      "lifetime_earnings": "0.000000",
+      "wallet_balance": "10.000000",
+      "max_capacity": "10.000000"
+    },
+    {
+      "ordering_key": 2,
+      "loyalty_score": 1,
+      "completion_rank": 2,
+      "lifetime_earnings": "0.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "100.000000"
+    }
+  ],
+  "loyalty_pool": "100.000000",
+  "newcomer_pool": "0.000001",
+  "final_round": {
+    "mode": "only",
+    "recipient_basis": "prior_30_days"
+  }
+}

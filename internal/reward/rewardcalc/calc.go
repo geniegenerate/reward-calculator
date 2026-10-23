@@ -45,6 +45,12 @@ type Input struct {
 	Participants []Participant   `json:"participants"`
 	LoyaltyPool  decimal.Decimal `json:"loyalty_pool"`  // original pool balance, 6dp
 	NewcomerPool decimal.Decimal `json:"newcomer_pool"` // original pool balance incl. carry-forward, 6dp
+	// NewcomerRestoration (AlgoV5) is added to the Charged Newcomer Pool AFTER the
+	// 10% deduction: confirmed collusion reversals plus the restoration-origin
+	// carry of the previous round (Rules 6.2, 7.5). Absent = none.
+	NewcomerRestoration *decimal.Decimal `json:"newcomer_restoration,omitempty"`
+	// FinalRound (AlgoV5) is the program-end final distribution (Rules 11.4).
+	FinalRound *FinalRound `json:"final_round,omitempty"`
 }
 
 // MemberResult is one row of the result file.
@@ -57,6 +63,9 @@ type MemberResult struct {
 	ExcessAmount   decimal.Decimal `json:"excess_amount"`   // 6dp
 	WasOverCap     bool            `json:"was_over_cap"`
 	LoyaltyRank    int             `json:"loyalty_rank"` // 1-indexed loyalty-leaderboard position
+	// FinalShare (AlgoV5) is the member's program-end final share, credited
+	// withdrawable and outside CreditedAmount.
+	FinalShare *decimal.Decimal `json:"final_share,omitempty"`
 }
 
 // LoopResult is the per-loop newcomer breakdown (rank + credit per participant).
@@ -79,6 +88,10 @@ type Output struct {
 	TomorrowPool      decimal.Decimal `json:"tomorrow_pool"`
 	TotalCredited     decimal.Decimal `json:"total_credited"`
 	TotalParticipants int             `json:"total_participants"`
+	// TomorrowRestorationCarry (AlgoV5) is the restoration-origin part of the
+	// carry: it re-enters the next round after the deduction, never meeting one.
+	TomorrowRestorationCarry *decimal.Decimal  `json:"tomorrow_restoration_carry,omitempty"`
+	FinalRound               *FinalRoundResult `json:"final_round,omitempty"`
 }
 
 // ============================================================================
@@ -106,11 +119,26 @@ var (
 // Compute runs the full distribution math and returns the deterministic result.
 // Pure function: identical Input -> identical Output, bit-for-bit.
 func Compute(in Input) Output {
+	if in.FinalRound != nil && in.FinalRound.Mode == FinalModeOnly {
+		return computeFinalOnly(in)
+	}
+	out, loyaltyRanks := computeRound(in)
+	if in.FinalRound != nil {
+		return withFinalRound(in, out, loyaltyRanks)
+	}
+	return out
+}
+
+// computeRound is one distribution round: the v4.0 math plus the post-deduction
+// restoration input.
+func computeRound(in Input) (Output, map[int64]int) {
 	loyaltyDeduction := applyDeduction(in.LoyaltyPool)
 	newcomerDeduction := applyDeduction(in.NewcomerPool)
 	tomorrowPool := loyaltyDeduction.tomorrow.Add(newcomerDeduction.tomorrow)
 	chargedLoyaltyPool := loyaltyDeduction.charged
 	chargedNewcomerPool := newcomerDeduction.charged
+	restoration := restorationOf(in)
+	chargedNewcomerPool = chargedNewcomerPool.Add(restoration)
 
 	loyaltySorted := sortLoyalty(in.Participants)
 	loyaltyRanks := ranksFromSorted(loyaltySorted)
@@ -133,20 +161,28 @@ func Compute(in Input) Output {
 	members, capacityExcess := applyWalletCapacity(in.Participants, loyaltyKeep, newcomerRewards, loyaltyRanks)
 	tomorrowPool = tomorrowPool.Add(capacityExcess)
 
+	var restorationCarry *decimal.Decimal
+	if restoration.IsPositive() {
+		rc := splitRestorationCarry(tomorrowPool, loyaltyDeduction, newcomerDeduction, restoration)
+		tomorrowPool = tomorrowPool.Sub(rc)
+		restorationCarry = &rc
+	}
+
 	totalCredited := decimal.Zero
 	for _, m := range members {
 		totalCredited = totalCredited.Add(m.CreditedAmount)
 	}
 
 	return Output{
-		Members:           members,
-		NewcomerLoops:     loops,
-		NewcomerCap:       newcomerCap,
-		LoyaltyUnclaimed:  loyaltyUnclaimed,
-		TomorrowPool:      tomorrowPool,
-		TotalCredited:     totalCredited,
-		TotalParticipants: len(in.Participants),
-	}
+		Members:                  members,
+		NewcomerLoops:            loops,
+		NewcomerCap:              newcomerCap,
+		LoyaltyUnclaimed:         loyaltyUnclaimed,
+		TomorrowPool:             tomorrowPool,
+		TotalCredited:            totalCredited,
+		TotalParticipants:        len(in.Participants),
+		TomorrowRestorationCarry: restorationCarry,
+	}, loyaltyRanks
 }
 
 // ============================================================================

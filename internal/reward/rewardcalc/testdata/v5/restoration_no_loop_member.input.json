@@ -1,0 +1,15 @@
+{
+  "participants": [
+    {
+      "ordering_key": 1,
+      "loyalty_score": 0,
+      "completion_rank": 1,
+      "lifetime_earnings": "0.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "100.000000"
+    }
+  ],
+  "loyalty_pool": "0.000000",
+  "newcomer_pool": "0.000000",
+  "newcomer_restoration": "10.000000"
+}

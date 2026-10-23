@@ -157,6 +157,12 @@
       loyalty_pool: snap.pool.loyalty_pool,
       newcomer_pool: snap.pool.newcomer_pool,
     };
+    // v5.0 inputs, forwarded only when the snapshot carries them: an older
+    // calculator refuses fields it does not know, and its days never have them.
+    if (snap.pool.newcomer_restoration !== undefined) {
+      calcInput.newcomer_restoration = snap.pool.newcomer_restoration;
+    }
+    if (snap.final_round !== undefined) calcInput.final_round = snap.final_round;
     const mod = await WebAssembly.compile(state.wasmBytes);
     const run = await WasiRunner.runWasi(mod, enc.encode(JSON.stringify(calcInput)));
     if (run.exitCode !== 0) {
@@ -232,7 +238,10 @@
       credited: rewardMerkle.normalize6(m.credited_amount),
       loyalty: rewardMerkle.normalize6(m.loyalty_reward),
       newcomer: rewardMerkle.normalize6(m.newcomer_reward),
+      final: m.final_share === undefined ? null : rewardMerkle.normalize6(m.final_share),
     }));
+    const hasFinal = rows.some((r) => r.final !== null);
+    $('members-final-head').hidden = !hasFinal;
     const section = $('members-section');
     section.hidden = false;
     const render = (filter) => {
@@ -243,7 +252,8 @@
       $('members-body').innerHTML = shown
         .map((r) =>
           '<tr><td>' + r.pseudonym + '</td><td class="num">' + r.loyalty +
-          '</td><td class="num">' + r.newcomer + '</td><td class="num">' + r.credited + '</td></tr>')
+          '</td><td class="num">' + r.newcomer + '</td><td class="num">' + r.credited +
+          (hasFinal ? '</td><td class="num">' + (r.final || '0.000000') : '') + '</td></tr>')
         .join('');
       $('members-count').textContent =
         shown.length === match.length

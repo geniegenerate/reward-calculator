@@ -102,18 +102,22 @@
    * Result leaf: keccak256(abi.encode(uint64 ordering_key,
    * uint256 loyalty_reward, uint256 newcomer_reward, uint256 credited_amount,
    * uint256 excess_amount, bool was_over_cap)) — amounts in micro-units.
+   * On a v5.0 program-end final round only, the leaf gains a seventh field,
+   * uint256 final_share; every other leaf keeps the six fields above.
    * `m` is one member object shaped like the calculator's output
    * (6dp decimal strings; `normalize6` them first if needed).
    */
   function resultLeafHash(m) {
-    return keccakBytes(concat([
+    const fields = [
       word(m.ordering_key),
       word(toMicros(m.loyalty_reward)),
       word(toMicros(m.newcomer_reward)),
       word(toMicros(m.credited_amount)),
       word(toMicros(m.excess_amount)),
       word(m.was_over_cap ? 1n : 0n),
-    ]));
+    ];
+    if (m.final_share !== undefined) fields.push(word(toMicros(m.final_share)));
+    return keccakBytes(concat(fields));
   }
 
   /**
@@ -188,6 +192,7 @@
       credited_amount: normalize6(m.credited_amount),
       excess_amount: normalize6(m.excess_amount),
       was_over_cap: m.was_over_cap,
+      final_share: m.final_share === undefined ? undefined : normalize6(m.final_share),
     }))));
   }
 

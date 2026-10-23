@@ -1,0 +1,35 @@
+{
+  "participants": [
+    {
+      "ordering_key": 1,
+      "loyalty_score": 5,
+      "completion_rank": 10,
+      "lifetime_earnings": "1.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "100.000000"
+    },
+    {
+      "ordering_key": 2,
+      "loyalty_score": 3,
+      "completion_rank": 20,
+      "lifetime_earnings": "2.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "100.000000"
+    },
+    {
+      "ordering_key": 3,
+      "loyalty_score": 1,
+      "completion_rank": 30,
+      "lifetime_earnings": "0.500000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "100.000000"
+    }
+  ],
+  "loyalty_pool": "3.000000",
+  "newcomer_pool": "5.000000",
+  "newcomer_restoration": "2.000000",
+  "final_round": {
+    "mode": "only",
+    "recipient_basis": "round_eligible"
+  }
+}

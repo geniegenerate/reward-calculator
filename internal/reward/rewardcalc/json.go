@@ -19,6 +19,9 @@ func ComputeJSON(inputJSON []byte) ([]byte, error) {
 	if err := dec.Decode(&in); err != nil {
 		return nil, err
 	}
+	if err := Validate(in); err != nil {
+		return nil, err
+	}
 
 	out := Compute(in)
 	return json.Marshal(out)

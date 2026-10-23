@@ -59,9 +59,19 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
 | `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25T15:05:55Z (announced 2026-09-18 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x9fb17c2e…94afb25e`, block 131763757) | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
+| `v5.0` | `0xe268ef9e…6d684588` | staged — not announced | an amount reversed after a confirmed collusion finding enters the Newcomer allocation after the 10% deduction, and the part of the day's carry that came from it re-enters the next day the same way, so it never meets a deduction; at the program end every pool balance is shared equally in one final round (no deduction, no wallet-capacity cap) |
 
-`v4.0` is the anchored algorithm as of its effective date above; `main` rebuilds to it. To
-reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
+`v4.0` is the anchored algorithm as of its effective date above. `main` rebuilds to `v5.0`,
+which is staged and not in force: to reproduce the live anchor, check out the `v4.0` tag and
+rebuild. To reproduce any earlier version's `algorithm_id`, check out that version's tag.
+
+**v5.0** adds two optional inputs, both absent on an ordinary day, when its output is
+byte-identical to v4.0's: `newcomer_restoration` (6 dp; added to the Charged Newcomer Pool after
+the deduction) and `final_round` (`{"mode": "after_round" | "only", "recipient_basis":
+"round_eligible" | "prior_30_days"}`). Each final share is `floor(amount / N, 6dp)`, and the
+remaining 0.000001 units go one each to the lowest ordering keys, so the shares sum to the amount
+exactly. `internal/reward/rewardcalc/testdata/v5` holds its golden vectors; the backend holds the
+same files and the same `SHA256SUMS`.
 
 ## Reproducible build
 
@@ -126,7 +136,9 @@ Map it first:
 jq '{participants: [.participants[] | {ordering_key, loyalty_score,
      completion_rank, lifetime_earnings: .lifetime_earnings_usdt,
      wallet_balance: .wallet_balance_usdt, max_capacity: .max_capacity_usdt}],
-     loyalty_pool: .pool.loyalty_pool, newcomer_pool: .pool.newcomer_pool}' \
+     loyalty_pool: .pool.loyalty_pool, newcomer_pool: .pool.newcomer_pool}
+     + (if .pool.newcomer_restoration then {newcomer_restoration: .pool.newcomer_restoration} else {} end)
+     + (if .final_round then {final_round} else {} end)' \
   input-snapshot.json > calc-input.json
 
 wasmtime calculator.wasm < calc-input.json > result.json
@@ -150,7 +162,8 @@ precision model).
   uint256 max_capacity))`
 - result leaf — `keccak256(abi.encode(uint64 ordering_key,
   uint256 loyalty_reward, uint256 newcomer_reward, uint256 credited_amount,
-  uint256 excess_amount, bool was_over_cap))`
+  uint256 excess_amount, bool was_over_cap))`; on a v5.0 program-end final round
+  only, a seventh field follows, `uint256 final_share`
 
 A reference implementation in plain JavaScript is `web/calculator/merkle.js`.
 
