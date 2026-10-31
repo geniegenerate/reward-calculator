@@ -46,7 +46,11 @@
 name: promote-anchor
 
 on:
-  # schedule: re-add when re-arming for a new version — see the block above.
+  # RE-ARMED 2026-10-31 for v5.0 (effective 2026-11-21T12:00:00Z): the first eligible
+  # run is 2026-11-21T16:00Z, 4 h after V5 takes force and 8 h before the first
+  # round under it (2026-11-22 00:00 UTC). Disarm again once it has flipped v5.0.
+  schedule:
+    - cron: "0 16 * * *"
   workflow_dispatch:
 
 permissions:

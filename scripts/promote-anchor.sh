@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flip the public anchor to v4.0 once its announced effective date has passed.
+# Flip the public anchor to the new version (TAG below) once its announced effective date has passed.
 #
 # WHY THIS EXISTS AT ALL. The hosted verifier at verify.geniegenerate.com/calculator
 # builds from `releases/latest` (scripts/cf-pages-build.sh) and Cloudflare Pages
@@ -27,20 +27,20 @@
 # Idempotent: safe to run every day forever. Exit 0 = nothing to do or done; 1 = it
 # needs a human. Set DRY_RUN=1 to print the decision without touching anything.
 #
-# PER-VERSION, and currently SPENT: the constants below name v4.0, which it flipped
-# on 2026-09-26, so today it exits 0 with "anchor already on v4.0". Its workflow's
-# schedule was disarmed 2026-09-30 so a permanently-green run could not read as
-# coverage for a version it does not cover. Re-arming for a new version is four
+# PER-VERSION: the constants below name v5.0 (re-armed 2026-10-31; v4.0 was flipped
+# 2026-09-26 and the job disarmed 2026-09-30 so a permanently-green run could not
+# read as coverage for a version it does not cover). Disarm it again once it has
+# flipped v5.0. Re-arming for a new version is four
 # steps, listed in .github/workflows/promote-anchor.yml's header and owned by
 # company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-TAG=v4.0
-EFFECTIVE=2026-09-25T15:05:55Z   # UTC. Announced tx 0x9fb17c2e…, block 131763757.
-ID=0x892bd64ae40b3f18ca7b3e19720b52644284e227a7cbc421d6d698dd0b7391a9
-POST=anchor/README.v4.0.md
-PRE_SHA_FILE=anchor/README.pre-v4.0.sha256
+TAG=v5.0
+EFFECTIVE=2026-11-21T12:00:00Z   # UTC. Announced tx 0x809e6def…f94e87a6, block 140014529.
+ID=0xe268ef9e88a6167bc04b31c72348a0ad4ed49fd5fe0badda6bece9896d684588
+POST=anchor/README.v5.0.md
+PRE_SHA_FILE=anchor/README.pre-v5.0.sha256
 
 say() { printf '%s\n' "$*"; }
 sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
@@ -69,7 +69,7 @@ fi
 want="$(cat "$PRE_SHA_FILE")"
 got="$(sha README.md)"
 if [ "$want" != "$got" ]; then
-    say "STOP: README.md changed since the v4.0 swap was prepared."
+    say "STOP: README.md changed since the $TAG swap was prepared."
     say "      expected $want"
     say "      found    $got"
     say "      Redo the anchor edit by hand, then refresh $PRE_SHA_FILE (or delete this script)."
@@ -89,7 +89,7 @@ else
     say "STOP: gh is not available, cannot promote the release"; exit 1
 fi
 
-# --- 2. the README names v4.0 ------------------------------------------------
+# --- 2. the README names the new version -----------------------------------
 cp "$POST" README.md
 say "anchor swapped to $TAG"
 
