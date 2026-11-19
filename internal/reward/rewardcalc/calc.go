@@ -51,6 +51,17 @@ type Input struct {
 	NewcomerRestoration *decimal.Decimal `json:"newcomer_restoration,omitempty"`
 	// FinalRound (AlgoV5) is the program-end final distribution (Rules 11.4).
 	FinalRound *FinalRound `json:"final_round,omitempty"`
+	// PoolSeeds (AlgoV6, REWARD_SYSTEM v3.67/v3.68) marks a round under the
+	// shop-paid service fee: the pools are money (the fee already left at
+	// payment), no pool bears a deduction, and each pool's seed, recorded at
+	// payment, goes to the next day's Newcomer Pool. Absent = V5 math.
+	PoolSeeds *PoolSeeds `json:"pool_seeds,omitempty"`
+}
+
+// PoolSeeds are the 2% Tomorrow Newcomer seeds of the round's two pools, 6dp.
+type PoolSeeds struct {
+	Loyalty  decimal.Decimal `json:"loyalty"`
+	Newcomer decimal.Decimal `json:"newcomer"`
 }
 
 // MemberResult is one row of the result file.
@@ -132,8 +143,7 @@ func Compute(in Input) Output {
 // computeRound is one distribution round: the v4.0 math plus the post-deduction
 // restoration input.
 func computeRound(in Input) (Output, map[int64]int) {
-	loyaltyDeduction := applyDeduction(in.LoyaltyPool)
-	newcomerDeduction := applyDeduction(in.NewcomerPool)
+	loyaltyDeduction, newcomerDeduction := poolCharges(in)
 	tomorrowPool := loyaltyDeduction.tomorrow.Add(newcomerDeduction.tomorrow)
 	chargedLoyaltyPool := loyaltyDeduction.charged
 	chargedNewcomerPool := newcomerDeduction.charged
@@ -203,6 +213,31 @@ func applyDeduction(pool decimal.Decimal) deduction {
 	platformAmt := ded.Mul(decimal.RequireFromString("0.80")).Truncate(6)
 	tomorrowAmt := ded.Sub(platformAmt) // remainder to avoid dust loss
 	return deduction{charged: pool.Sub(ded), tomorrow: tomorrowAmt}
+}
+
+// poolCharges is what each pool gives the day and carries to tomorrow: V5's
+// 10% deduction, or under AlgoV6 only the seed recorded at payment, so no
+// money leaves the round.
+func poolCharges(in Input) (loyalty, newcomer deduction) {
+	if in.PoolSeeds == nil {
+		return applyDeduction(in.LoyaltyPool), applyDeduction(in.NewcomerPool)
+	}
+	return seedOnly(in.LoyaltyPool, in.PoolSeeds.Loyalty), seedOnly(in.NewcomerPool, in.PoolSeeds.Newcomer)
+}
+
+// seedOnly carries the seed and shares the rest. A seed outside [0, pool]
+// cannot come from the payment path; it is clamped so the round conserves.
+func seedOnly(pool, seed decimal.Decimal) deduction {
+	if !pool.IsPositive() {
+		return deduction{charged: decimal.Zero, tomorrow: decimal.Zero}
+	}
+	if seed.IsNegative() {
+		seed = decimal.Zero
+	}
+	if seed.GreaterThan(pool) {
+		seed = pool
+	}
+	return deduction{charged: pool.Sub(seed), tomorrow: seed}
 }
 
 // sortLoyalty: LoyaltyScore DESC → CompletionRank ASC → LifetimeEarnings DESC → OrderingKey ASC.
