@@ -163,6 +163,9 @@
       calcInput.newcomer_restoration = snap.pool.newcomer_restoration;
     }
     if (snap.final_round !== undefined) calcInput.final_round = snap.final_round;
+    // v6.0 input: present on every v6.0 day (even when zero), because its
+    // presence selects the no-deduction math.
+    if (snap.pool.pool_seeds !== undefined) calcInput.pool_seeds = snap.pool.pool_seeds;
     const mod = await WebAssembly.compile(state.wasmBytes);
     const run = await WasiRunner.runWasi(mod, enc.encode(JSON.stringify(calcInput)));
     if (run.exitCode !== 0) {

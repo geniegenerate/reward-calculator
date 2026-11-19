@@ -142,7 +142,8 @@ jq '{participants: [.participants[] | {ordering_key, loyalty_score,
      wallet_balance: .wallet_balance_usdt, max_capacity: .max_capacity_usdt}],
      loyalty_pool: .pool.loyalty_pool, newcomer_pool: .pool.newcomer_pool}
      + (if .pool.newcomer_restoration then {newcomer_restoration: .pool.newcomer_restoration} else {} end)
-     + (if .final_round then {final_round} else {} end)' \
+     + (if .final_round then {final_round} else {} end)
+     + (if .pool.pool_seeds then {pool_seeds: .pool.pool_seeds} else {} end)' \
   input-snapshot.json > calc-input.json
 
 wasmtime calculator.wasm < calc-input.json > result.json

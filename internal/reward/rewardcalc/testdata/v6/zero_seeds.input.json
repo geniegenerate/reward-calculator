@@ -1,0 +1,139 @@
+{
+  "participants": [
+    {
+      "ordering_key": 1,
+      "loyalty_score": 8,
+      "completion_rank": 1,
+      "lifetime_earnings": "0.333333",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 2,
+      "loyalty_score": 4,
+      "completion_rank": 2,
+      "lifetime_earnings": "0.666667",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 3,
+      "loyalty_score": 11,
+      "completion_rank": 3,
+      "lifetime_earnings": "1.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 4,
+      "loyalty_score": 7,
+      "completion_rank": 4,
+      "lifetime_earnings": "1.333333",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 5,
+      "loyalty_score": 3,
+      "completion_rank": 5,
+      "lifetime_earnings": "1.666667",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 6,
+      "loyalty_score": 10,
+      "completion_rank": 6,
+      "lifetime_earnings": "2.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 7,
+      "loyalty_score": 6,
+      "completion_rank": 7,
+      "lifetime_earnings": "2.333333",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 8,
+      "loyalty_score": 2,
+      "completion_rank": 8,
+      "lifetime_earnings": "2.666667",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 9,
+      "loyalty_score": 9,
+      "completion_rank": 9,
+      "lifetime_earnings": "3.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 10,
+      "loyalty_score": 5,
+      "completion_rank": 10,
+      "lifetime_earnings": "3.333333",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 11,
+      "loyalty_score": 1,
+      "completion_rank": 11,
+      "lifetime_earnings": "3.666667",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 12,
+      "loyalty_score": 8,
+      "completion_rank": 12,
+      "lifetime_earnings": "4.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 13,
+      "loyalty_score": 4,
+      "completion_rank": 13,
+      "lifetime_earnings": "4.333333",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 14,
+      "loyalty_score": 11,
+      "completion_rank": 14,
+      "lifetime_earnings": "4.666667",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 15,
+      "loyalty_score": 7,
+      "completion_rank": 15,
+      "lifetime_earnings": "5.000000",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    },
+    {
+      "ordering_key": 16,
+      "loyalty_score": 3,
+      "completion_rank": 16,
+      "lifetime_earnings": "5.333333",
+      "wallet_balance": "0.000000",
+      "max_capacity": "1000.000000"
+    }
+  ],
+  "loyalty_pool": "50.000000",
+  "newcomer_pool": "40.000000",
+  "newcomer_restoration": "4.444444",
+  "pool_seeds": {
+    "loyalty": "0.000000",
+    "newcomer": "0.000000"
+  }
+}
