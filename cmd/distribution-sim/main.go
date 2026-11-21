@@ -22,7 +22,14 @@
 //
 // The loyalty pool is $1.00 per participant that day (one completed Daily
 // Challenge each). The newcomer pool is -newcomer-pool per day, plus the
-// previous day's Tomorrow Newcomer Pool when -carry is set. Every amount is
+// previous day's Tomorrow Newcomer Pool when -carry is set.
+//
+// -pool-seeds runs the AlgoV6 inputs instead: the 8% service fee has left at
+// payment, so each completion funds the loyalty pool with $0.92 of which $0.02
+// is the Tomorrow Newcomer seed, and the fresh newcomer inflow carries a seed
+// of 2/92 of itself. -rank-bands adds, for the last day, each loyalty-rank
+// range's average loyalty and newcomer credit against the $1.00 discount the
+// position itself completed, and every newcomer loop. Every amount is
 // what the algorithm credits, before wallet-capacity clamping matters (capacity
 // is set to 10,000).
 package main
@@ -59,11 +66,13 @@ func main() {
 	carry := flag.Bool("carry", false, "add the previous day's Tomorrow Newcomer Pool to the next day's newcomer pool")
 	scenario := flag.String("scenario", "uniform", "equal | uniform | longtail | cohort | cohort-shops")
 	seed := flag.Int64("seed", 42, "random seed (deterministic per seed)")
+	poolSeeds := flag.Bool("pool-seeds", false, "AlgoV6 inputs: $0.92 loyalty pool per participant incl. a $0.02 seed, no pool deduction")
+	rankBands := flag.Bool("rank-bands", false, "print the last day's credit by loyalty-rank range and every newcomer loop")
 	flag.Parse()
 
 	r := rand.New(rand.NewSource(*seed))
 	pop := seedPopulation(*members, *scenario, r)
-	fmt.Printf("scenario=%s members=%d days=%d newcomer-pool=%.0f/day carry=%v seed=%d\n", *scenario, *members, *days, *ncPool, *carry, *seed)
+	fmt.Printf("scenario=%s members=%d days=%d newcomer-pool=%.0f/day carry=%v seed=%d pool-seeds=%v\n", *scenario, *members, *days, *ncPool, *carry, *seed, *poolSeeds)
 	printLSSummary(pop)
 
 	cum := make(map[int64]float64, *members)
@@ -71,6 +80,7 @@ func main() {
 	everOver100 := map[int64]bool{}
 	var prevTop10, prevNcTop100, prevOver100 map[int64]bool
 	carryOver := decimal.Zero
+	var last rewardcalc.Output
 	trace := map[int64][]float64{}
 	var traceKeys []int64
 	traceName := map[int64]string{}
@@ -87,8 +97,8 @@ func main() {
 		if *carry {
 			pool = pool.Add(carryOver)
 		}
-		out := rewardcalc.Compute(rewardcalc.Input{Participants: ps, LoyaltyPool: decimal.NewFromInt(int64(len(ps))), NewcomerPool: pool})
-		carryOver = out.TomorrowPool
+		out := rewardcalc.Compute(dayInput(ps, pool, *ncPool, *poolSeeds))
+		carryOver, last = out.TomorrowPool, out
 
 		totals := make(map[int64]float64, len(out.Members))
 		newcomer := make(map[int64]float64, len(out.Members))
@@ -135,6 +145,11 @@ func main() {
 		}
 		prevTop10, prevNcTop100, prevOver100 = top10, ncTop100, over
 		advanceDay(pop, active, *scenario)
+	}
+
+	if *rankBands && len(last.Members) > 0 {
+		printRankBands(last)
+		printNewcomerLoops(last)
 	}
 
 	if *days > 1 {
