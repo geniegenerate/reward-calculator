@@ -40,6 +40,7 @@ type loop struct {
 
 type lastDay struct {
 	Participants     int         `json:"participants"`
+	OwnDiscount      float64     `json:"own_discount"` // bands and rank ranges are in multiples of this
 	LoyaltyPoolIn    float64     `json:"loyalty_pool_in"`
 	NewcomerPoolIn   float64     `json:"newcomer_pool_in"`
 	LoyaltyCredited  float64     `json:"loyalty_credited"`
@@ -51,9 +52,11 @@ type lastDay struct {
 	Loops            []loop      `json:"newcomer_loops"`
 }
 
-// writeLastDay records one day in units of a position's own $1.00 discount.
-func writeLastDay(path string, out rewardcalc.Output, in rewardcalc.Input) error {
-	d := lastDay{Participants: len(out.Members), LoyaltyPoolIn: in.LoyaltyPool.InexactFloat64(), NewcomerPoolIn: in.NewcomerPool.InexactFloat64(),
+// writeLastDay records one day. Pools are in dollars (a $1.00 target each);
+// credit bands and rank ranges are in multiples of the position's own
+// discount, own = 1 + extra.
+func writeLastDay(path string, out rewardcalc.Output, in rewardcalc.Input, own float64) error {
+	d := lastDay{Participants: len(out.Members), OwnDiscount: own, LoyaltyPoolIn: in.LoyaltyPool.InexactFloat64(), NewcomerPoolIn: in.NewcomerPool.InexactFloat64(),
 		TomorrowPool: out.TomorrowPool.InexactFloat64(), NewcomerCap: out.NewcomerCap.InexactFloat64()}
 	bands := make([]band, len(creditEdges))
 	for i, e := range creditEdges {
@@ -69,7 +72,8 @@ func writeLastDay(path string, out rewardcalc.Output, in rewardcalc.Input) error
 	ms := append([]rewardcalc.MemberResult(nil), out.Members...)
 	sort.Slice(ms, func(i, j int) bool { return ms[i].LoyaltyRank < ms[j].LoyaltyRank })
 	for _, m := range ms {
-		l, n, t := m.LoyaltyReward.InexactFloat64(), m.NewcomerReward.InexactFloat64(), m.TotalReward.InexactFloat64()
+		l, n := m.LoyaltyReward.InexactFloat64(), m.NewcomerReward.InexactFloat64()
+		t := m.TotalReward.InexactFloat64() / own
 		d.LoyaltyCredited += l
 		d.NewcomerCredited += n
 		for i, e := range creditEdges {
@@ -98,9 +102,9 @@ func writeLastDay(path string, out rewardcalc.Output, in rewardcalc.Input) error
 		r := rankRange{Lo: lo, Hi: hi}
 		below := 0
 		for _, m := range ms[lo-1 : hi] {
-			r.Loyalty += m.LoyaltyReward.InexactFloat64()
-			r.Newcomer += m.NewcomerReward.InexactFloat64()
-			if m.TotalReward.InexactFloat64() < 1 {
+			r.Loyalty += m.LoyaltyReward.InexactFloat64() / own
+			r.Newcomer += m.NewcomerReward.InexactFloat64() / own
+			if m.TotalReward.InexactFloat64() < own {
 				below++
 			}
 		}
