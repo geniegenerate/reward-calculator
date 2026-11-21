@@ -68,6 +68,7 @@ func main() {
 	seed := flag.Int64("seed", 42, "random seed (deterministic per seed)")
 	poolSeeds := flag.Bool("pool-seeds", false, "AlgoV6 inputs: $0.92 loyalty pool per participant incl. a $0.02 seed, no pool deduction")
 	rankBands := flag.Bool("rank-bands", false, "print the last day's credit by loyalty-rank range and every newcomer loop")
+	jsonOut := flag.String("json", "", "write the last day's pools, credit bands, rank ranges and newcomer loops to this file")
 	flag.Parse()
 
 	r := rand.New(rand.NewSource(*seed))
@@ -81,6 +82,7 @@ func main() {
 	var prevTop10, prevNcTop100, prevOver100 map[int64]bool
 	carryOver := decimal.Zero
 	var last rewardcalc.Output
+	var lastIn rewardcalc.Input
 	trace := map[int64][]float64{}
 	var traceKeys []int64
 	traceName := map[int64]string{}
@@ -97,8 +99,9 @@ func main() {
 		if *carry {
 			pool = pool.Add(carryOver)
 		}
-		out := rewardcalc.Compute(dayInput(ps, pool, *ncPool, *poolSeeds))
-		carryOver, last = out.TomorrowPool, out
+		in := dayInput(ps, pool, *ncPool, *poolSeeds)
+		out := rewardcalc.Compute(in)
+		carryOver, last, lastIn = out.TomorrowPool, out, in
 
 		totals := make(map[int64]float64, len(out.Members))
 		newcomer := make(map[int64]float64, len(out.Members))
@@ -147,6 +150,12 @@ func main() {
 		advanceDay(pop, active, *scenario)
 	}
 
+	if *jsonOut != "" && len(last.Members) > 0 {
+		if err := writeLastDay(*jsonOut, last, lastIn); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
 	if *rankBands && len(last.Members) > 0 {
 		printRankBands(last)
 		printNewcomerLoops(last)
