@@ -8,18 +8,23 @@ WASM from this source, confirm the hash matches the on-chain announcement, run i
 on their own exported distribution snapshot, and independently reproduce their
 reward — no trust in GenieGenerate's servers required.
 
-## On-chain anchor (v4.0)
+## On-chain anchor (v5.0)
 
 | | |
 |---|---|
-| `algorithm_id` | `0x892bd64ae40b3f18ca7b3e19720b52644284e227a7cbc421d6d698dd0b7391a9` |
+| `algorithm_id` | `0xe268ef9e88a6167bc04b31c72348a0ad4ed49fd5fe0badda6bece9896d684588` |
 | Contract (`RewardVerifier`, BSC testnet) | `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7` |
-| Announce tx | `0x9fb17c2e6e8aa7fed2a64b6326f8749219c4c1f8fa5627c39cc5fa9e94afb25e` |
-| Effective | `2026-09-25T15:05:55Z` (after the contract's 7-day MIN_TIMELOCK) |
+| Announce tx | `0x809e6def6c8c037ee6abf8b18c4853ba50202f92d0f605743f3c5294f94e87a6` |
+| Effective | `2026-11-21T12:00:00Z` (after the contract's 7-day MIN_TIMELOCK) |
 
 `algorithm_id = "0x" + keccak256(calculator.wasm)`. The 7-day timelock between
 announcement and effectiveness exists precisely so anyone can verify this source
 and its compiled artifact *before* it computes any rewards.
+
+**v5.0** is byte-identical to v4.0 on an ordinary day. It adds two cases: an amount
+reversed after a confirmed collusion finding enters the Newcomer allocation after the 10%
+deduction and never meets one, and at the program end every pool balance is shared equally
+in one final round with no deduction. Everything below about v4.0 still holds under v5.0.
 
 **v4.0** shares the newcomer-cap surplus instead of carrying it. After every
 newcomer loop has run, the cap surplus — the final-loop clamp excess plus the
@@ -59,11 +64,10 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | `v3.7` | `0xc32dbb34…731824bb` | 2026-06-16 | unclaimed grid parts return to the forwarder |
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
 | `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25T15:05:55Z (announced 2026-09-18 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x9fb17c2e…94afb25e`, block 131763757) | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
-| `v5.0` | `0xe268ef9e…6d684588` | staged — not announced | an amount reversed after a confirmed collusion finding enters the Newcomer allocation after the 10% deduction, and the part of the day's carry that came from it re-enters the next day the same way, so it never meets a deduction; at the program end every pool balance is shared equally in one final round (no deduction, no wallet-capacity cap) |
+| `v5.0` | `0xe268ef9e…6d684588` | 2026-11-21T12:00:00Z (announced 2026-10-31 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x809e6def…f94e87a6`, block 140014529) | an amount reversed after a confirmed collusion finding enters the Newcomer allocation after the 10% deduction, and the part of the day's carry that came from it re-enters the next day the same way, so it never meets a deduction; at the program end every pool balance is shared equally in one final round (no deduction, no wallet-capacity cap) |
 
-`v4.0` is the anchored algorithm as of its effective date above. `main` rebuilds to `v5.0`,
-which is staged and not in force: to reproduce the live anchor, check out the `v4.0` tag and
-rebuild. To reproduce any earlier version's `algorithm_id`, check out that version's tag.
+`v5.0` is the anchored algorithm as of its effective date above; `main` rebuilds to it. To
+reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
 
 **v5.0** adds two optional inputs, both absent on an ordinary day, when its output is
 byte-identical to v4.0's: `newcomer_restoration` (6 dp; added to the Charged Newcomer Pool after
@@ -190,7 +194,7 @@ every day; and every member reaches the newcomer ceiling only once the newcomer
 inflow exceeds `N × ceiling` per day. Past that point the two versions in this
 repo differ: under `v3.9` (anchored until 2026-09-25) the carried-over remainder
 grows without bound and bears the 10% deduction again on every re-entry; under
-`v4.0` (the anchored algorithm) that surplus is instead shared equally among the
+`v4.0` and `v5.0` (the anchored algorithm) that surplus is instead shared equally among the
 day's participants the same day, so nothing carries and nothing compounds. The
 tool is not compiled into `calculator.wasm`; the on-chain `algorithm_id` is
 unaffected by it.
