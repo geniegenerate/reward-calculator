@@ -65,9 +65,11 @@ the matching tag and rebuild to reproduce that version's `algorithm_id`.
 | `v3.9` | `0x26512565…d8ef41e9` | 2026-06-23 | per-capita newcomer final-loop floor |
 | `v4.0` | `0x892bd64a…0b7391a9` | 2026-09-25T15:05:55Z (announced 2026-09-18 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x9fb17c2e…94afb25e`, block 131763757) | newcomer-cap surplus shared equally among every participant of the day (one extra `is_surplus` loop) instead of carried to tomorrow |
 | `v5.0` | `0xe268ef9e…6d684588` | 2026-11-21T12:00:00Z (announced 2026-10-31 on the production `RewardVerifier` `0x40D7DF42AB8Bbb4faD0FB90953FB545D426051a7`, tx `0x809e6def…f94e87a6`, block 140014529) | an amount reversed after a confirmed collusion finding enters the Newcomer allocation after the 10% deduction, and the part of the day's carry that came from it re-enters the next day the same way, so it never meets a deduction; at the program end every pool balance is shared equally in one final round (no deduction, no wallet-capacity cap) |
+| `v6.0` | `0x86985593…e586a14b` | staged — not announced | the shop pays the 8% service fee at payment time, so no pool bears any deduction; the 2% seed set aside at payment enters the next day's Newcomer Pool as the optional `pool_seeds` input |
 
-`v5.0` is the anchored algorithm as of its effective date above; `main` rebuilds to it. To
-reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
+`v5.0` is the anchored algorithm as of its effective date above. `main` rebuilds to `v6.0`,
+which is staged and not in force: to reproduce the live anchor, check out the `v5.0` tag and
+rebuild. To reproduce an earlier version's `algorithm_id`, check out that version's tag and rebuild.
 
 **v5.0** adds two optional inputs, both absent on an ordinary day, when its output is
 byte-identical to v4.0's: `newcomer_restoration` (6 dp; added to the Charged Newcomer Pool after
