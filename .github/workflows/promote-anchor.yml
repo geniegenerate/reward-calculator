@@ -1,4 +1,5 @@
-# Flips the public anchor to v4.0 the day its announced effective date passes.
+# Flips the public anchor to the version named in scripts/promote-anchor.sh (TAG) the day
+# its announced effective date passes.
 #
 # The gap this closes: the hosted verifier builds from `releases/latest` and
 # Cloudflare Pages rebuilds on PUSH, not on a release. So at an effective date
@@ -46,9 +47,11 @@
 name: promote-anchor
 
 on:
-  # RE-ARMED 2026-10-31 for v5.0 (effective 2026-11-21T12:00:00Z): the first eligible
-  # run is 2026-11-21T16:00Z, 4 h after V5 takes force and 8 h before the first
-  # round under it (2026-11-22 00:00 UTC). Disarm again once it has flipped v5.0.
+  # RE-ARMED 2026-11-24 for v6.0 (effective 2026-12-25T01:00:01Z): the first eligible
+  # run is 2026-12-25T16:00Z, 15 h after V6 takes force and 8 h before the first
+  # round under it (2026-12-26 00:00 UTC). Disarm again once it has flipped v6.0.
+  # (v5.0 flipped 2026-11-21; its bot commit read "moves to v4.0" because the message
+  # was hard-coded. The version now comes from the script's TAG.)
   schedule:
     - cron: "0 16 * * *"
   workflow_dispatch:
@@ -80,24 +83,26 @@ jobs:
           fi
           git config user.name  "geniegenerate-bot"
           git config user.email "noreply@geniegenerate.com"
+          TAG=$(sed -n 's/^TAG=//p' scripts/promote-anchor.sh)
+          [ -n "$TAG" ] || { echo "STOP: no TAG in scripts/promote-anchor.sh"; exit 1; }
           git add README.md
-          git commit -F - <<'MSG'
-          docs: the on-chain anchor moves to v4.0
-
-          The announced effective date has passed, so the hosted verifier must now
-          serve v4.0. Cloudflare Pages rebuilds on push, not on a release, which is
-          why this commit exists at all.
-
-          The text was prepared and reviewed by hand in anchor/README.v4.0.md on
-          2026-09-18; this job only swapped it in, after checking README.md was still
-          the exact file that plan was written against.
-          MSG
+          printf '%s\n' \
+            "docs: the on-chain anchor moves to $TAG" \
+            "" \
+            "The announced effective date has passed, so the hosted verifier must now" \
+            "serve $TAG. Cloudflare Pages rebuilds on push, not on a release, which is" \
+            "why this commit exists at all." \
+            "" \
+            "The text was prepared and reviewed by hand in anchor/README.$TAG.md; this" \
+            "job only swapped it in, after checking README.md was still the exact file" \
+            "that plan was written against." | git commit -F -
           git push
 
       - name: Confirm the LIVE page actually moved
         run: |
           set -uo pipefail
-          if git log -1 --format=%s | grep -q "anchor moves to v4.0"; then
+          TAG=$(sed -n 's/^TAG=//p' scripts/promote-anchor.sh)
+          if git log -1 --format=%s | grep -qF "anchor moves to $TAG"; then
             echo "Waiting for the Cloudflare Pages rebuild…"
             for i in $(seq 1 10); do
               sleep 45

@@ -27,20 +27,19 @@
 # Idempotent: safe to run every day forever. Exit 0 = nothing to do or done; 1 = it
 # needs a human. Set DRY_RUN=1 to print the decision without touching anything.
 #
-# PER-VERSION: the constants below name v5.0 (re-armed 2026-10-31; v4.0 was flipped
-# 2026-09-26 and the job disarmed 2026-09-30 so a permanently-green run could not
-# read as coverage for a version it does not cover). Disarm it again once it has
-# flipped v5.0. Re-arming for a new version is four
+# PER-VERSION: the constants below name v6.0 (re-armed 2026-11-24; v4.0 was flipped
+# 2026-09-26, v5.0 on 2026-11-21). Disarm it once it has flipped v6.0, so a
+# permanently-green run cannot read as coverage for a version it does not cover. Re-arming for a new version is four
 # steps, listed in .github/workflows/promote-anchor.yml's header and owned by
 # company/operations/REWARD_ALGORITHM_VERSION_MANAGEMENT.md.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-TAG=v5.0
-EFFECTIVE=2026-11-21T12:00:00Z   # UTC. Announced tx 0x809e6def…f94e87a6, block 140014529.
-ID=0xe268ef9e88a6167bc04b31c72348a0ad4ed49fd5fe0badda6bece9896d684588
-POST=anchor/README.v5.0.md
-PRE_SHA_FILE=anchor/README.pre-v5.0.sha256
+TAG=v6.0
+EFFECTIVE=2026-12-25T01:00:01Z   # UTC. Announced tx 0x39d6699c…ea8712d7, block 144637096.
+ID=0x869855931614482113e98d9e145aab89edc0e1bc9ce31ca6de706940e586a14b
+POST=anchor/README.v6.0.md
+PRE_SHA_FILE=anchor/README.pre-v6.0.sha256
 
 say() { printf '%s\n' "$*"; }
 sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
