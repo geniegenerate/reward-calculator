@@ -1,0 +1,291 @@
+  /* ————————————————————————————————————————————————————————————————
+     GenieGenerate Reward Calculator — member-mode trust surface.
+     Everything on this page is local: fonts are self-hosted, no CDNs,
+     no trackers, no network except the BNB Smart Chain read. The design
+     itself is part of the audit surface — view source.
+
+     Design system: business/FRONTEND_DESIGN_SYSTEM.md v3.1 (Binance-
+     benchmarked, financial-first). Flat surfaces, no gradients on
+     background or data, monochrome grayscale + a single accent per rail:
+       · ORANGE  #F6921A  — member mode: computed on YOUR device
+       · TEAL    #0FA4A4  — shop  mode: read FROM the chain
+       · GREEN/RED        — the comparison verdict
+     ———————————————————————————————————————————————————————————————— */
+
+  /* —— self-hosted brand fonts (Inter + NotoSans), served from this origin ——— */
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/Inter-Regular.ttf')  format('truetype'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; font-display:swap; src:url('fonts/Inter-SemiBold.ttf') format('truetype'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; font-display:swap; src:url('fonts/Inter-Bold.ttf')     format('truetype'); }
+  @font-face { font-family:'NotoSans'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/NotoSans-Regular.ttf')  format('truetype'); }
+  @font-face { font-family:'NotoSans'; font-style:normal; font-weight:600; font-display:swap; src:url('fonts/NotoSans-SemiBold.ttf') format('truetype'); }
+
+  :root {
+    /* dark theme tokens — FRONTEND_DESIGN_SYSTEM.md §3.3 */
+    --bg:        #21262F;   /* Lv6 · main background */
+    --surface:   #2A313C;   /* Lv5 · cards / panels  */
+    --border:    #343B46;   /* Lv4 · borders / dividers */
+    --ink:       #EAEEEF;   /* Lv1 · primary text */
+    --ink-2:     #A0A8B6;   /* Lv2 · secondary text */
+    --ink-3:     #949CAA;   /* Lv3 · tertiary / overlines */
+    /* member accent — §3.4 orange family */
+    --orange:      #F6921A;
+    --orange-dark: #EB850A;
+    /* shop accent — the "read from the chain" rail */
+    --teal:      #0FA4A4;
+    --teal-link: #2CC5C5;   /* brighter teal, tuned for AA on the dark bg */
+    /* semantic — §3.5 (three, no more) */
+    --profit:  #10B981;
+    --loss:    #E57373;
+    --warning: #F59E0B;
+    /* type — §4.1: Inter for UI, NotoSans (tabular) for every number/hash */
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --num:  'NotoSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* elevation — §7: subtle in dark, never heavy */
+    --shadow-card: 0 1px 2px rgba(0,0,0,.28), 0 10px 28px -22px rgba(0,0,0,.7);
+    --r-sm: 8px;    /* chips / badges */
+    --r-md: 12px;   /* cards / inputs (default) */
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--bg);              /* solid — no gradient, no atmosphere */
+    font: 400 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .num { font-family: var(--num); font-feature-settings: 'tnum' 1; }
+
+  main { max-width: 760px; margin: 0 auto; padding: 56px 20px 72px; }
+
+  /* —— header: a flat notary seal wearing the real mark ————————————————————— */
+  header { text-align: center; margin-bottom: 48px; }
+  .seal { width: 92px; height: 92px; margin: 0 auto 22px; }
+  .seal svg { display: block; width: 100%; height: 100%; }
+  .seal .ring { transform-origin: 50% 50%; animation: ring-turn 80s linear infinite; }
+  .seal .ring.counter { animation-direction: reverse; animation-duration: 120s; }
+  @keyframes ring-turn { to { transform: rotate(360deg); } }
+
+  .kicker {
+    margin: 0 0 16px;
+    font: 600 11.5px/1 var(--sans);
+    letter-spacing: .28em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .kicker .mark { letter-spacing: .06em; }
+  .kicker .mark b { font-weight: 700; color: var(--orange); }
+  .kicker .mark b span { color: var(--teal-link); }
+  .kicker .sep { margin: 0 .5em; color: var(--border); }
+
+  h1 {
+    margin: 0 0 18px;
+    font: 700 clamp(30px, 6vw, 44px)/1.08 var(--sans);
+    letter-spacing: -.02em; color: var(--ink);
+  }
+  h1 .caret { color: var(--orange); font-family: var(--num); font-weight: 600; }
+
+  .lede { max-width: 560px; margin: 0 auto 26px; color: var(--ink-2); font-size: 16px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .assurances { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .assurances span {
+    display: inline-flex; align-items: center; gap: 7px;
+    font: 600 10.5px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-2);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 9px 13px; background: var(--surface);
+  }
+  .assurances span::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--orange); flex: none;
+  }
+  .assurances span.chain-chip::before { background: var(--teal); }
+
+  /* —— the chain of steps: flat cards on a hairline rail ————————————————————— */
+  .chain { list-style: none; margin: 0; padding: 0; }
+  .chain > li { position: relative; padding: 0 0 22px 44px; }
+  .chain > li::before {                 /* rail — flat 1px Lv4, no gradient */
+    content: ""; position: absolute; left: 15px; top: 30px; bottom: -4px; width: 1px;
+    background: var(--border);
+  }
+  .chain > li:last-child::before { display: none; }
+  .chain > li::after {                  /* node */
+    content: ""; position: absolute; left: 8px; top: 6px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--orange);
+  }
+
+  .step-tag {
+    display: flex; align-items: center; gap: 10px; margin: 4px 0 12px;
+    font: 600 12px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .step-tag .idx {
+    font-family: var(--num); font-weight: 600; font-size: 11px; letter-spacing: .04em;
+    color: var(--orange); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 7px; background: var(--bg);
+  }
+
+  /* —— panels: flat Lv5 surface, 1px Lv4 border, 12px radius, subtle shadow —— */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 22px;
+    box-shadow: var(--shadow-card);
+  }
+  .panel h2 { margin: 0 0 6px; font: 600 18px/1.35 var(--sans); color: var(--ink); letter-spacing: -.01em; }
+  .sub { margin: 0 0 16px; color: var(--ink-3); font-size: 13.5px; line-height: 1.6; }
+  .sub a, .note a, footer a {
+    color: var(--orange); text-decoration: none;
+    border-bottom: 1px solid rgba(246,146,26,.35);
+  }
+  .sub a:hover, .note a:hover, footer a:hover { border-bottom-color: var(--orange); }
+
+  /* —— dropzone: the app's QR-scanner frame, flattened ————————————————————— */
+  #dropzone {
+    position: relative; cursor: pointer; text-align: center;
+    padding: 32px 18px 28px; border-radius: var(--r-md);
+    color: var(--ink-2); background: var(--bg);
+    border: 1px solid var(--border);
+    transition: background .15s ease, border-color .15s ease;
+    outline: none;
+  }
+  /* corner brackets */
+  #dropzone::before, #dropzone::after,
+  #dropzone .corners::before, #dropzone .corners::after {
+    content: ""; position: absolute; width: 22px; height: 22px;
+    border: 2px solid var(--orange); transition: border-color .15s ease;
+  }
+  #dropzone::before          { top: 10px; left: 10px;  border-right: 0; border-bottom: 0; border-top-left-radius: 6px; }
+  #dropzone::after           { top: 10px; right: 10px; border-left: 0;  border-bottom: 0; border-top-right-radius: 6px; }
+  #dropzone .corners::before { bottom: 10px; left: 10px;  border-right: 0; border-top: 0; border-bottom-left-radius: 6px; }
+  #dropzone .corners::after  { bottom: 10px; right: 10px; border-left: 0;  border-top: 0; border-bottom-right-radius: 6px; }
+  #dropzone:hover, #dropzone.over, #dropzone:focus-visible {
+    background: rgba(246,146,26,.06); border-color: rgba(246,146,26,.5);
+  }
+  #dropzone:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--orange); }
+  #dropzone .glyph { width: 38px; height: 38px; margin: 0 auto 12px; display: block; color: var(--orange); }
+  #dropzone strong { color: var(--ink); font-size: 16px; font-weight: 600; }
+  #dropzone .hint { display: block; margin-top: 8px; font: 400 12.5px/1.5 var(--num); color: var(--ink-3); }
+  #file-picker { display: none; }
+
+  /* —— status chips: flat semantic tints, icon glyph + text ————————————————— */
+  .status {
+    margin-top: 14px; padding: 12px 14px; border-radius: var(--r-sm);
+    font-size: 14px; line-height: 1.5; border: 1px solid transparent;
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  .status::before { font-family: var(--num); font-weight: 600; font-size: 13px; flex: none; }
+  .status.ok   { background: rgba(16,185,129,.1);  border-color: rgba(16,185,129,.32); color: #7fd7b4; }
+  .status.ok::before   { content: "\2713"; color: var(--profit); }
+  .status.bad  { background: rgba(229,115,115,.1); border-color: rgba(229,115,115,.32); color: #eba0a0; }
+  .status.bad::before  { content: "\2715"; color: var(--loss); }
+  .status.warn { background: rgba(245,158,11,.1);  border-color: rgba(245,158,11,.32);  color: #e6c07a; }
+  .status.warn::before { content: "!"; color: var(--warning); }
+  .status.busy { background: rgba(246,146,26,.08); border-color: rgba(246,146,26,.3); color: var(--orange); }
+  .status.busy::before { content: "\25CC"; color: var(--orange); display: inline-block; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* —— the verdict: a prominent but flat banner ————————————————————————————— */
+  #verdict { margin-top: 18px; padding: 18px 18px 18px 20px; border-radius: var(--r-md);
+             font: 600 15px/1.5 var(--sans); border-left-width: 4px; }
+  #verdict::before { font-size: 18px; align-self: center; }
+  #verdict.ok   { background: rgba(16,185,129,.1);  border-color: rgba(16,185,129,.32); border-left-color: var(--profit);  color: #8ee2c0; }
+  #verdict.bad  { background: rgba(229,115,115,.1); border-color: rgba(229,115,115,.32); border-left-color: var(--loss);   color: #efadad; }
+  #verdict.warn { background: rgba(245,158,11,.1);  border-color: rgba(245,158,11,.32);  border-left-color: var(--warning);color: #ecc684; }
+  #verdict.busy { border-left-color: var(--orange); }
+
+  /* —— evidence ledger: color-coded rails ——————————————————————————————————
+     ORANGE rail = computed on your device (member) · TEAL = read from the
+     chain (shop/counterparty) · GREEN/RED = the comparison verdict. */
+  #verify-detail { margin-top: 16px; }
+  .hash-row {
+    padding: 11px 0 11px 14px; border-bottom: 1px solid var(--border);
+    border-left: 2px solid rgba(246,146,26,.6);
+  }
+  .hash-row:first-child { border-top: 1px solid var(--border); }
+  .hash-row.chain { border-left-color: rgba(15,164,164,.7); }
+  .hash-row.chain .hash-label { color: var(--teal-link); }
+  .hash-row.ok  { border-left-color: var(--profit); }
+  .hash-row.bad { border-left-color: var(--loss); }
+  .hash-label {
+    display: block; margin-bottom: 4px;
+    font: 600 10.5px/1.5 var(--sans); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .hash-row.ok .hash-label  { color: var(--profit); }
+  .hash-row.bad .hash-label { color: var(--loss); }
+  code.hash { font: 400 12.5px/1.5 var(--num); font-feature-settings: 'tnum' 1; word-break: break-all; color: var(--ink-2); }
+  .note { margin: 12px 0 0; color: var(--ink-3); font-size: 13px; line-height: 1.6; }
+
+  #rail-legend {
+    display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px;
+    font: 600 10.5px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  }
+  #rail-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; font-style: normal; }
+  #rail-legend .you i   { background: var(--orange); }
+  #rail-legend .chain i { background: var(--teal); }
+
+  #explorer-link {
+    display: inline-flex; align-items: center; margin-top: 16px; min-height: 44px;
+    font: 600 12.5px/1 var(--sans); letter-spacing: .04em; color: var(--teal-link); text-decoration: none;
+    border: 1px solid rgba(15,164,164,.45); border-radius: var(--r-sm); padding: 12px 16px;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  #explorer-link:hover { background: rgba(15,164,164,.1); border-color: var(--teal); }
+  #explorer-link:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--teal); }
+
+  /* —— recomputed rewards table ————————————————————————————————————————————— */
+  #members-section { margin: 0 0 24px 44px; }
+  #members-filter {
+    width: 100%; padding: 12px 14px; min-height: 44px; border-radius: var(--r-md); margin-bottom: 14px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--ink); font: 400 14px var(--num);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  #members-filter::placeholder { color: var(--ink-3); }
+  #members-filter:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(246,146,26,.16); }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--ink-3); font: 600 10.5px/1.5 var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+  tbody tr { transition: background .12s ease; }
+  tbody tr:hover { background: rgba(246,146,26,.05); }
+  td:first-child { font: 600 13px var(--num); color: var(--orange); }
+  td.num, th.num { text-align: right; font-family: var(--num); font-feature-settings: 'tnum' 1; }
+  td.num:last-child { color: var(--ink); font-weight: 600; }
+  #members-count { margin-top: 10px; color: var(--ink-3); font: 400 12px var(--num); }
+
+  /* —— footer: the CLI escape hatch ————————————————————————————————————————— */
+  footer { margin-top: 44px; color: var(--ink-3); font-size: 13.5px; text-align: center; }
+  footer .term {
+    display: block; max-width: 560px; margin: 0 auto 14px; text-align: left;
+    font: 400 12.5px/1.7 var(--num);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+    padding: 13px 16px; color: var(--ink-2); overflow-x: auto; white-space: nowrap;
+  }
+  footer .term .ps1 { color: var(--orange); user-select: none; }
+  footer .fine { max-width: 560px; margin: 0 auto; line-height: 1.6; }
+
+  /* —— load choreography: one restrained staggered entrance ————————————————— */
+  header, .chain > li, #members-section, footer {
+    animation: rise .5s cubic-bezier(.2,.7,.2,1) both;
+    animation-delay: calc(var(--i, 0) * 80ms);
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+  @media (max-width: 560px) {
+    main { padding-top: 40px; }
+    .chain > li { padding-left: 34px; }
+    .chain > li::after { left: 3px; }
+    .chain > li::before { left: 10px; }
+    #members-section { margin-left: 34px; }
+    .panel { padding: 18px 16px; }
+  }

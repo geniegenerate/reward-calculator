@@ -10,6 +10,29 @@ on-chain `algorithm_id`). Deployment downloads the release asset into the page
 directory, which guarantees the page serves byte-identical code to the
 announced artifact.
 
+## The Thai page (`/th/`)
+
+`web/th/` verifies a distribution of the Thai deployment, whose public record
+is an OpenTimestamps stamp in Bitcoin instead of the BSC contract (that
+deployment holds no coin). It recomputes the roots with the same code as
+`/calculator/` (`calculator/recompute.js`, `merkle.js`, `wasi.js`, the same
+`calculator.wasm`), rebuilds the stamped statement from them, checks that its
+SHA-256 is the hash the `.ots` proof stamps, and checks the proof against the
+block's merkle root from two public Bitcoin explorers (blockstream.info,
+mempool.space). The page makes no request to the company.
+
+The statement, one `key: value` line each, newline-terminated:
+
+```
+reward distribution
+challenge_date: YYYY-MM-DD
+input_root: 0x…
+result_root: 0x…
+algorithm_id: 0x…
+```
+
+Tests for the proof reader: `node --test test/*.test.js`.
+
 ## Cloudflare Pages settings
 
 - **Build command:** `bash scripts/cf-pages-build.sh`

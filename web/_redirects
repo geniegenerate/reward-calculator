@@ -1,3 +1,4 @@
 # Cloudflare Pages: the canonical path is /calculator (spec: web_calculator_url).
 / /calculator/ 302
 /calculator /calculator/ 301
+/th /th/ 301

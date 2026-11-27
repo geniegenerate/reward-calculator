@@ -12,13 +12,11 @@
  *      shown and the rewards you were paid are exactly what was committed
  *      on-chain before crediting, under the published open-source algorithm.
  */
-/* global keccak256, rewardMerkle, WasiRunner, rewardChain */
+/* global keccak256, rewardMerkle, rewardRecompute, rewardChain */
 (function () {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const enc = new TextEncoder();
-  const dec = new TextDecoder();
 
   const state = {
     snapshot: null, // parsed input-snapshot JSON
@@ -140,43 +138,9 @@
     // Algorithm identity: bundled/dropped binary vs the snapshot's claim.
     const algoMatchesSnapshot = state.wasmHash === snap.algorithm_id;
 
-    // 1. Input root, recomputed from the snapshot fields alone.
-    const inputRoot = rewardMerkle.inputRootFromSnapshot(snap.participants);
-
-    // 2. Run the algorithm on the snapshot (map the published field names onto
-    // the calculator's input schema — same data, no additions).
-    const calcInput = {
-      participants: snap.participants.map((p) => ({
-        ordering_key: p.ordering_key,
-        loyalty_score: p.loyalty_score,
-        completion_rank: p.completion_rank,
-        lifetime_earnings: p.lifetime_earnings_usdt,
-        wallet_balance: p.wallet_balance_usdt,
-        max_capacity: p.max_capacity_usdt,
-      })),
-      loyalty_pool: snap.pool.loyalty_pool,
-      newcomer_pool: snap.pool.newcomer_pool,
-    };
-    // v5.0 inputs, forwarded only when the snapshot carries them: an older
-    // calculator refuses fields it does not know, and its days never have them.
-    if (snap.pool.newcomer_restoration !== undefined) {
-      calcInput.newcomer_restoration = snap.pool.newcomer_restoration;
-    }
-    if (snap.final_round !== undefined) calcInput.final_round = snap.final_round;
-    // v6.0 input: present on every v6.0 day (even when zero), because its
-    // presence selects the no-deduction math.
-    if (snap.pool.pool_seeds !== undefined) calcInput.pool_seeds = snap.pool.pool_seeds;
-    const mod = await WebAssembly.compile(state.wasmBytes);
-    const run = await WasiRunner.runWasi(mod, enc.encode(JSON.stringify(calcInput)));
-    if (run.exitCode !== 0) {
-      throw new Error('calculator exited ' + run.exitCode + ': ' + dec.decode(run.stderr));
-    }
-    const calcOut = JSON.parse(dec.decode(run.stdout));
-
-    // 3. Result root from the calculator's own output.
-    const resultRoot = calcOut.members.length
-      ? rewardMerkle.resultRootFromMembers(calcOut.members)
-      : '0x' + keccak256('GENIEGENERATE_EMPTY_MERKLE_ROOT');
+    // 1–3. Input root from the snapshot, rewards by running the algorithm,
+    // result root from its output (recompute.js, shared with the Thai page).
+    const { inputRoot, resultRoot, calcOut } = await rewardRecompute.run(snap, state.wasmBytes);
 
     // 4. The on-chain commitment — the trust anchor.
     let chain = null;

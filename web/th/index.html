@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#21262F">
+<title>ตรวจสอบการแจกรีวอร์ด — บันทึกประทับเวลา</title>
+<meta name="description" content="ตรวจสอบการแจกรีวอร์ดรอบหนึ่งบนเครื่องของคุณเอง: คำนวณซ้ำด้วยโปรแกรมโอเพนซอร์ส แล้วเทียบกับบันทึกที่ประทับเวลาไว้ใน Bitcoin">
+<link rel="stylesheet" href="../calculator/style.css">
+<style>
+  @font-face { font-family:'IBMPlexSansThai'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/IBMPlexSansThai-Regular.ttf') format('truetype'); }
+  @font-face { font-family:'IBMPlexSansThai'; font-style:normal; font-weight:600; font-display:swap; src:url('fonts/IBMPlexSansThai-SemiBold.ttf') format('truetype'); }
+  :root { --sans: 'Inter', 'IBMPlexSansThai', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  h1, h2 { line-height: 1.35; }
+  /* Thai is never letter-spaced: tracking breaks its clusters apart. */
+  .kicker, .step-tag, .hash-label, .assurances span, #rail-legend span, th { letter-spacing: 0; }
+  #statement-box pre { margin: 10px 0 0; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,.04);
+    font: 400 12.5px/1.6 var(--num); white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+  <header style="--i:0">
+    <p class="kicker">Proof of Reward · ตลาดไทย</p>
+    <h1>ตรวจสอบการแจกรีวอร์ด<span class="caret">_</span></h1>
+    <p class="lede">ตรวจผลการแจกรีวอร์ดรอบหนึ่ง <strong>โดยไม่ต้องเชื่อบริษัท</strong>
+       ทุกอย่างคำนวณในหน้านี้บนเครื่องของคุณ สิ่งเดียวที่หน้านี้ติดต่อคือ Bitcoin explorer สาธารณะ</p>
+    <div class="assurances" role="list">
+      <span role="listitem">คำนวณบนเครื่องคุณ</span>
+      <span role="listitem" class="chain-chip">อ่านจาก Bitcoin เท่านั้น</span>
+      <span role="listitem">ซอร์สโค้ดคือหน้านี้</span>
+    </div>
+  </header>
+
+  <ol class="chain">
+    <li style="--i:1">
+      <span class="step-tag"><span class="idx">01</span> หลักฐาน</span>
+      <section class="panel">
+        <h2>วางไฟล์ของรอบที่ต้องการตรวจ</h2>
+        <p class="sub">ต้องใช้สองไฟล์: <strong>Input Snapshot</strong> (ดาวน์โหลดจากแอป: ตรวจสอบรีวอร์ด → ดาวน์โหลดข้อมูลการตรวจสอบ)
+           และ <strong>บันทึกสาธารณะ</strong> ของวันเดียวกัน (ไฟล์ public-record หรือไฟล์ .ots)
+           วางไฟล์ผลลัพธ์ หรือ calculator.wasm จาก
+           <a href="https://github.com/geniegenerate/reward-calculator/releases" rel="noopener">GitHub release</a> เพิ่มได้</p>
+        <div id="dropzone" role="button" tabindex="0" aria-label="เลือกหรือวางไฟล์สำหรับตรวจสอบ">
+          <span class="corners" aria-hidden="true"></span>
+          <strong>วางไฟล์ที่นี่</strong> หรือคลิกเพื่อเลือก
+          <span class="hint">input-snapshot.json · public-record.json หรือ .ots · result.json · calculator.wasm</span>
+        </div>
+        <input id="file-picker" type="file" multiple accept=".json,.ots,.wasm,application/json,application/wasm">
+        <div id="snapshot-status" class="status" hidden></div>
+        <div id="record-status" class="status" hidden></div>
+        <div id="result-status" class="status" hidden></div>
+      </section>
+    </li>
+
+    <li style="--i:2">
+      <span class="step-tag"><span class="idx">02</span> โปรแกรม</span>
+      <section class="panel">
+        <h2>โปรแกรมคำนวณตัวจริง ระบุด้วยค่าแฮช</h2>
+        <p class="sub">keccak256 ของไฟล์ด้านล่าง <em>คือ</em> algorithm_id ซึ่งประกาศและประทับเวลาไว้อย่างน้อย 7 วัน
+           ก่อนนำมาใช้คำนวณ ใครก็ตรวจซอร์สโค้ดได้ก่อน</p>
+        <div id="wasm-info"></div>
+        <div id="wasm-status" class="status" hidden></div>
+      </section>
+    </li>
+
+    <li style="--i:3">
+      <span class="step-tag"><span class="idx">03</span> ผลตรวจ</span>
+      <section class="panel">
+        <h2>คำนวณซ้ำ แล้วเทียบกับบันทึกใน Bitcoin</h2>
+        <p class="sub">หน้านี้คำนวณ Merkle root ทั้งสองค่าใหม่ สร้างข้อความของวันนั้นขึ้นใหม่เอง แล้วตรวจว่าแฮช SHA-256
+           ของข้อความนั้นคือค่าที่ถูกประทับเวลาไว้ใน Bitcoin ก่อนจ่ายรีวอร์ด</p>
+        <div id="verdict" class="status" hidden></div>
+        <div id="verify-detail"></div>
+        <div id="rail-legend" hidden>
+          <span class="you"><i></i>คำนวณบนเครื่องคุณ</span>
+          <span class="chain"><i></i>จากหลักฐานประทับเวลาและ Bitcoin</span>
+        </div>
+        <div id="statement-box" hidden>
+          <p class="note">ข้อความที่สร้างใหม่ (ค่าแฮชของข้อความนี้คือสิ่งที่ถูกประทับเวลา):</p>
+          <pre id="statement"></pre>
+        </div>
+      </section>
+    </li>
+  </ol>
+
+  <section id="members-section" class="panel" hidden style="--i:4">
+    <h2>รีวอร์ดที่คำนวณซ้ำ</h2>
+    <p class="sub">ค้นหารหัสของคุณ (แสดงในหน้าตรวจสอบรีวอร์ดของแอป) จำนวนเป็นบาท</p>
+    <input id="members-filter" type="search" placeholder="กรองด้วยรหัส เช่น AB12CD34" aria-label="กรองสมาชิก">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>รหัส</th><th class="num">Loyalty</th><th class="num">Newcomer</th><th class="num">ได้รับ</th></tr></thead>
+        <tbody id="members-body"></tbody>
+      </table>
+    </div>
+    <div id="members-count"></div>
+  </section>
+
+  <footer style="--i:5">
+    <span class="term"><span class="ps1">$</span> ots verify public-record.ots <span class="ps1"># ตรวจหลักฐานด้วยเครื่องมือของ OpenTimestamps เอง</span></span>
+    <p class="fine">หลักฐานนี้พิสูจน์ว่ากติกาที่เผยแพร่และผลของวันนั้นไม่ถูกแก้ไขหลังถูกบันทึก
+       แต่ไม่ได้พิสูจน์ว่าการซื้อเบื้องหลังเป็นของจริง ส่วนนั้นอาศัยการตรวจสอบตามข้อตกลงร้านค้า
+       หน้านี้เป็นส่วนหนึ่งของ<a href="https://github.com/geniegenerate/reward-calculator" rel="noopener">คลังโค้ดโอเพนซอร์ส</a> ตรวจสอบได้ก่อนเชื่อ</p>
+  </footer>
+</main>
+<script src="../calculator/sha3.js"></script>
+<script src="../calculator/merkle.js"></script>
+<script src="../calculator/wasi.js"></script>
+<script src="../calculator/recompute.js"></script>
+<script src="ots.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
