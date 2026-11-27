@@ -116,14 +116,26 @@
   // ---- step 3: verify -----------------------------------------------------------
 
   let running = false;
+  // A file that lands while a run is in flight (a snapshot and a .wasm dropped
+  // together) must not be lost: the run then repeats with the newest inputs.
+  let again = false;
 
   async function maybeVerify() {
-    if (!state.snapshot || !state.wasmBytes || running) return;
+    if (!state.snapshot || !state.wasmBytes) return;
+    if (running) {
+      again = true;
+      return;
+    }
     running = true;
     try {
-      await verify();
-    } catch (e) {
-      setStatus('verdict', 'bad', 'verification failed: ' + e.message);
+      do {
+        again = false;
+        try {
+          await verify();
+        } catch (e) {
+          setStatus('verdict', 'bad', 'verification failed: ' + e.message);
+        }
+      } while (again);
     } finally {
       running = false;
     }

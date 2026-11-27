@@ -115,13 +115,24 @@
   // ---- verify ------------------------------------------------------------------------
 
   let running = false;
+  // A file that lands mid-run (files dropped together) reruns with the newest inputs.
+  let again = false;
   async function maybeVerify() {
-    if (!state.snapshot || !state.wasmBytes || running) return;
+    if (!state.snapshot || !state.wasmBytes) return;
+    if (running) {
+      again = true;
+      return;
+    }
     running = true;
     try {
-      await verify();
-    } catch (e) {
-      setStatus('verdict', 'bad', 'ตรวจสอบไม่สำเร็จ: ' + e.message);
+      do {
+        again = false;
+        try {
+          await verify();
+        } catch (e) {
+          setStatus('verdict', 'bad', 'ตรวจสอบไม่สำเร็จ: ' + e.message);
+        }
+      } while (again);
     } finally {
       running = false;
     }
